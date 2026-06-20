@@ -1,3 +1,4 @@
+.DS_*
 auth_info_baileys
 node_modules
 storage

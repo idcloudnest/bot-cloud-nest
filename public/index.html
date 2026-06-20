@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="id">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WA Bot Console</title>
+    <link rel="icon" type="image/png" href="/cloudnest.png" sizes="32x32">
+    <link rel="stylesheet" href="/style.css" />
+</head>
+
+<body>
+    <main class="layout">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="logo">☁️</div>
+                <div>
+                    <h1>WA Bot Console</h1>
+                    <p>Cloud Nest Bot</p>
+                </div>
+            </div>
+
+            <nav class="nav">
+                <a href="#overview">Overview</a>
+                <a href="#qr">QR Login</a>
+                <a href="#device">Device</a>
+                <a href="#send">Kirim Pesan</a>
+                <a href="#settings">Settings</a>
+                <a href="#sessions">Sessions</a>
+                <a href="#logs">Logs</a>
+            </nav>
+        </aside>
+
+        <section class="content">
+            <header class="topbar">
+                <div>
+                    <p class="eyebrow">Dashboard</p>
+                    <h2>Bot Control Center</h2>
+                </div>
+                <div class="topbar-status">
+                    <div id="statusPill" class="pill warning">
+                        <span class="status-dot"></span>
+                        <span id="statusPillText">Starting</span>
+                    </div>
+
+                    <small id="statusUpdatedAt" class="status-updated">
+                        Last update: -
+                    </small>
+                </div>
+            </header>
+
+            <section id="overview" class="grid cards">
+                <article class="card">
+                    <p class="card-label">Connection</p>
+                    <h3 id="connectionText">-</h3>
+                    <p id="lastError" class="muted">No error</p>
+                </article>
+                <article class="card">
+                    <p class="card-label">Started At</p>
+                    <h3 id="startedAtValue">-</h3>
+                    <p class="muted" id="serverTimeValue">Server local time</p>
+                </article>
+
+                <article class="card">
+                    <p class="card-label">Recent Logs</p>
+                    <h3 id="logCount">0</h3>
+                    <!-- <p class="muted">Max 100 logs in memory</p> -->
+                    <p id="logLimitText" class="muted">Max 100 logs in memory</p>
+                </article>
+            </section>
+
+            <section id="qr" class="panel qr-panel two-col">
+                <div class="qr-copy">
+                    <p class="eyebrow">Login</p>
+                    <h2>Scan QR WhatsApp</h2>
+                    <p id="qrMainDescription" class="muted">
+                        Hubungkan WhatsApp ke bot dengan scan QR dari menu Linked Devices.
+                    </p>
+
+                    <div class="qr-steps">
+                        <div class="qr-step">
+                            <span>1</span>
+                            <p>Buka <strong>WhatsApp</strong> di HP</p>
+                        </div>
+                        <div class="qr-step">
+                            <span>2</span>
+                            <p>Masuk ke <strong>Linked Devices</strong></p>
+                        </div>
+                        <div class="qr-step">
+                            <span>3</span>
+                            <p>Pilih <strong>Link a Device</strong> lalu scan QR</p>
+                        </div>
+                    </div>
+
+                    <div id="qrHintBox" class="qr-hint info">
+                        Menunggu status bot...
+                    </div>
+                </div>
+
+                <div class="qr-card">
+                    <div class="qr-card-head">
+                        <div id="qrStateBadge" class="qr-state-badge waiting">Waiting</div>
+                        <small id="qrUpdatedAt" class="qr-meta">QR updated: -</small>
+                    </div>
+
+                    <div class="qr-visual">
+                        <img id="qrImage" alt="QR Code" />
+                        <div id="qrEmpty" class="qr-empty">
+                            <div class="qr-empty-icon">📱</div>
+                            <h3 id="qrStateTitle">QR belum tersedia</h3>
+                            <p id="qrStateDescription">
+                                Bot sedang menyiapkan koneksi WhatsApp.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="qr-status-detail">
+                        <div class="qr-detail-row">
+                            <span>Connection</span>
+                            <strong id="qrConnectionText">-</strong>
+                        </div>
+                        <div class="qr-detail-row">
+                            <span>Last status update</span>
+                            <strong id="qrStatusUpdatedAt">-</strong>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="device" class="panel device-panel">
+                <div class="section-head">
+                    <div>
+                        <p class="eyebrow">WhatsApp Device</p>
+                        <h2>Connected Device</h2>
+                        <p class="muted">
+                            Informasi akun WhatsApp yang sedang terhubung ke bot.
+                        </p>
+                    </div>
+
+                    <div id="deviceStatusBadge" class="device-badge disconnected">
+                        Not Connected
+                    </div>
+                </div>
+
+                <div id="deviceCard" class="device-card is-empty">
+                    <div class="device-avatar">📱</div>
+
+                    <div class="device-info">
+                        <h3 id="deviceName">Belum ada device connected</h3>
+                        <p id="deviceDescription">
+                            Scan QR WhatsApp untuk menghubungkan device ke bot.
+                        </p>
+
+                        <div class="device-meta">
+                            <div>
+                                <span>Device ID</span>
+                                <strong id="deviceId">-</strong>
+                            </div>
+                            <div>
+                                <span>Platform</span>
+                                <strong id="devicePlatform">-</strong>
+                            </div>
+                            <div>
+                                <span>Connected At</span>
+                                <strong id="deviceConnectedAt">-</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="send" class="panel">
+                <div class="section-head">
+                    <div>
+                        <p class="eyebrow">Manual Message</p>
+                        <h2>Kirim Pesan ke 1 Nomor</h2>
+                    </div>
+                    <span class="hint">Contoh nomor: 6281234567890</span>
+                </div>
+
+                <form id="sendForm" class="form-grid">
+                    <label>
+                        Nomor WhatsApp
+                        <input id="phoneInput" type="text" placeholder="628xxxxxxxxxx" required />
+                    </label>
+                    <label>
+                        Pesan
+                        <textarea id="messageInput" rows="4" placeholder="Tulis pesan..." required></textarea>
+                    </label>
+                    <button type="submit">Kirim Pesan</button>
+                    <p id="sendFeedback" class="feedback"></p>
+                </form>
+            </section>
+
+            <section id="settings" class="panel settings-panel">
+                <div class="section-head settings-head">
+                    <div>
+                        <p class="eyebrow">Control</p>
+                        <h2>Bot Settings</h2>
+                        <p class="muted settings-subtitle">
+                            Atur perilaku bot dan kapasitas log dashboard.
+                        </p>
+                    </div>
+
+                    <div class="settings-badge">
+                        <span>Realtime Config</span>
+                    </div>
+                </div>
+
+                <form id="settingsForm" class="settings-grid">
+                    <article class="setting-card">
+                        <div class="setting-copy">
+                            <h3>Ignore Groups</h3>
+                            <p>Bot tidak akan membalas pesan dari grup.</p>
+                        </div>
+
+                        <label class="switch">
+                            <input id="ignoreGroupsInput" type="checkbox" />
+                            <span class="switch-slider"></span>
+                        </label>
+                    </article>
+
+                    <article class="setting-card">
+                        <div class="setting-copy">
+                            <h3>Ignore Privates</h3>
+                            <p>Bot tidak akan membalas pesan private.</p>
+                        </div>
+
+                        <label class="switch">
+                            <input id="ignorePrivatesInput" type="checkbox" />
+                            <span class="switch-slider"></span>
+                        </label>
+                    </article>
+
+                    <article class="setting-card setting-card-wide">
+                        <div class="setting-copy">
+                            <h3>Log Limit</h3>
+                            <p>Maksimal jumlah log yang disimpan di dashboard.</p>
+                        </div>
+
+                        <div class="log-limit-box">
+                            <input id="logLimitInput" type="number" min="10" max="1000" step="10" value="100" />
+                            <small id="logLimitHint">Range: 10 - 1000 logs</small>
+                        </div>
+                    </article>
+
+                    <div class="settings-footer">
+                        <div class="settings-footer-info">
+                            <strong>Tips:</strong>
+                            Perubahan akan langsung dipakai setelah disimpan.
+                        </div>
+
+                        <button id="saveSettingsButton" type="submit">
+                            Save Settings
+                        </button>
+                    </div>
+                </form>
+            </section>
+            <!-- <section id="settings" class="panel">
+                <div class="section-head">
+                    <div>
+                        <p class="eyebrow">Control</p>
+                        <h2>Bot Settings</h2>
+                    </div>
+                </div>
+
+                <form id="settingsForm" class="switches">
+                    <label class="setting-row">
+                        <span>
+                            <strong>Ignore Groups</strong>
+                            <small>Bot tidak akan membalas pesan dari grup.</small>
+                        </span>
+                        <input id="ignoreGroupsInput" type="checkbox" />
+                    </label>
+
+                    <label class="setting-row">
+                        <span>
+                            <strong>Ignore Privates</strong>
+                            <small>Bot tidak akan membalas pesan private.</small>
+                        </span>
+                        <input id="ignorePrivatesInput" type="checkbox" />
+                    </label>
+
+                    <label class="setting-row">
+                        <span>
+                            <strong>Log Limit</strong>
+                            <small>Maksimal jumlah log yang disimpan di dashboard.</small>
+                        </span>
+
+                        <div class="number-control">
+                            <input id="logLimitInput" type="number" min="10" max="1000" step="10" value="100" />
+                            <small id="logLimitHint">10 - 1000 logs</small>
+                        </div>
+                    </label>
+
+                    <button type="submit">Save Settings</button>\
+                </form>
+            </section> -->
+
+            <section id="sessions" class="panel">
+                <div class="section-head">
+                    <div>
+                        <p class="eyebrow">Conversation State</p>
+                        <h2>Active Conversations</h2>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>JID</th>
+                                <th>Step</th>
+                                <th>Updated</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sessionsTable"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="logs" class="panel">
+                <div class="section-head">
+                    <div>
+                        <p class="eyebrow">Realtime</p>
+                        <h2>Message Logs</h2>
+                    </div>
+
+                    <div class="section-actions">
+                        <button id="clearLogsButton" type="button" class="button-danger">
+                            Clear Logs
+                        </button>
+                    </div>
+                </div>
+
+                <p id="logsFeedback" class="feedback"></p>
+
+                <div id="logsList" class="logs"></div>
+            </section>
+        </section>
+    </main>
+
+    <!-- CONFIRM CLEAR LOGS -->
+    <div id="confirmModal" class="modal-backdrop" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+            <div class="modal-icon">🧹</div>
+
+            <div>
+                <h3 id="confirmTitle">Clear message logs?</h3>
+                <p id="confirmMessage">
+                    Semua log yang tampil di dashboard akan dibersihkan. Action ini tidak menghapus chat di WhatsApp.
+                </p>
+            </div>
+
+            <div class="modal-actions">
+                <button id="confirmCancelButton" type="button" class="button-secondary">
+                    Batal
+                </button>
+
+                <button id="confirmOkButton" type="button" class="button-danger">
+                    Ya, clear logs
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+    <!-- CONFIRM CLEAR LOGS -->
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
+</body>
+
+</html>

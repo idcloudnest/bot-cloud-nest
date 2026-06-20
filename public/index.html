@@ -7,6 +7,9 @@
     <title>WA Bot Console</title>
     <link rel="icon" type="image/png" href="/cloudnest.png" sizes="32x32">
     <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+        integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 
 <body>
@@ -37,7 +40,7 @@
                     <p class="eyebrow">Dashboard</p>
                     <h2>Bot Control Center</h2>
                 </div>
-                <div class="topbar-status">
+                <!-- <div class="topbar-status">
                     <div id="statusPill" class="pill warning">
                         <span class="status-dot"></span>
                         <span id="statusPillText">Starting</span>
@@ -45,6 +48,17 @@
 
                     <small id="statusUpdatedAt" class="status-updated">
                         Last update: -
+                    </small>
+                </div> -->
+                <div class="topbar-status">
+                    <div class="status-wrapper">
+                        <div id="statusPill" class="pill status-warning" title="Status koneksi bot saat ini">
+                            <i id="statusIcon" class="fas fa-circle-notch fa-spin"></i>
+                            <span id="statusPillText">Menyiapkan Sistem...</span>
+                        </div>
+                    </div>
+                    <small id="statusUpdatedAt" class="status-updated" title="Waktu terakhir status berubah">
+                        <i class="fas fa-clock"></i> Last update: -
                     </small>
                 </div>
             </header>
@@ -105,12 +119,20 @@
 
                     <div class="qr-visual">
                         <img id="qrImage" alt="QR Code" />
+                        <div id="qrTimerContainer" style="display: none;">
+                            <i class="fas fa-hourglass-half"></i>
+                            <span>Expire dalam <span id="qrTimerCount">60</span> detik</span>
+                        </div>
                         <div id="qrEmpty" class="qr-empty">
                             <div class="qr-empty-icon">📱</div>
                             <h3 id="qrStateTitle">QR belum tersedia</h3>
                             <p id="qrStateDescription">
                                 Bot sedang menyiapkan koneksi WhatsApp.
                             </p>
+
+                            <button id="btnGenerateQr" style="display: none; margin-top: 15px;">
+                                <i class="fas fa-qrcode"></i> Generate QR Code
+                            </button>
                         </div>
                     </div>
 
@@ -164,6 +186,16 @@
                                 <span>Connected At</span>
                                 <strong id="deviceConnectedAt">-</strong>
                             </div>
+                        </div>
+                        <div id="deviceActions" style="margin-top: 24px; display: none; gap: 10px; flex-wrap: wrap;">
+                            <button id="btnRestartDevice" class="button-secondary"
+                                style="color: var(--text); padding: 10px 16px; font-size: 13px;">
+                                🔄 Restart Bot
+                            </button>
+                            <button id="btnDisconnectDevice" class="button-danger"
+                                style="padding: 10px 16px; font-size: 13px;">
+                                🚪 Disconnect (Logout)
+                            </button>
                         </div>
                     </div>
                 </div>

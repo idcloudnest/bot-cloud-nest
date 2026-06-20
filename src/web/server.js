@@ -13,7 +13,7 @@ import {
     updateSettings,
 } from '../state/app-state.js';
 import { clearSession, getAllSessions } from '../services/session.service.js';
-import { logoutWhatsApp, sendWhatsAppMessage } from '../bot.js';
+import { logoutWhatsApp, sendWhatsAppMessage, restartWhatsApp, startBot } from '../bot.js';
 import { normalizePhoneToJid } from '../utils/formatter.js';
 import { basicAuth } from './auth.js';
 
@@ -92,7 +92,27 @@ export function startWebServer() {
         }
     })
 
+    app.post('/api/restart', async (_req, res) => {
+        try {
+            await restartWhatsApp();
+            res.json({ ok: true });
+        } catch (error) {
+            res.status(400).json({ error: error.message });
+        }
+    });
+
+    app.post('/api/generate-qr', async (_req, res) => {
+        try {
+            await startBot(); // Panggil fungsi utama Baileys
+            res.json({ ok: true });
+        } catch (error) {
+            res.status(400).json({ error: error.message });
+        }
+    });
+
     io.on('connection', (socket) => {
+        console.log('Client connected:', socket.id);
+
         const currentState = getState();
 
         socket.emit('state', currentState);
@@ -104,6 +124,10 @@ export function startWebServer() {
         if (currentState.qr) {
             socket.emit('qr', currentState.qr);
         }
+
+        socket.on('disconnect', () => {
+            console.log('Client disconnected:', socket.id);
+        });
     })
 
     onState('status', (payload) => {
@@ -116,16 +140,12 @@ export function startWebServer() {
         io.emit('state', getState());
     });
 
-    onState('log', (payload) => {
-        io.emit('log', payload);
-        io.emit('state', getState());
-    });
-
     onState('settings', (payload) => io.emit('settings', payload))
 
     // ===== LOGS SETTINGS =====
     onState('log', (payload) => {
         io.emit('log', payload)
+        // io.emit('state', getState());
         io.emit('sessions', getAllSessions())
     })
     onState('logs:init', (payload) => {

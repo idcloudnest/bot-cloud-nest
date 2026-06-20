@@ -125,7 +125,6 @@ export function setStatus(payload = {}) {
 }
 
 export function setQr(qr) {
-
     const updatedAt = new Date().toISOString()
     state.qr = qr;
     state.updatedAt = updatedAt;
@@ -133,6 +132,8 @@ export function setQr(qr) {
     emitter.emit('qr', {
         qr,
         updatedAt,
+        timeoutMs: qr?.timeoutMs,
+        expireAt: qr?.expireAt || null
     });
 
     return state.qr;

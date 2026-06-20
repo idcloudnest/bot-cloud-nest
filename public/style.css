@@ -163,7 +163,7 @@ p {
 
 .two-col {
     display: grid;
-    grid-template-columns: 1fr 260px;
+    grid-template-columns: 1fr 340px;
     gap: 24px;
     align-items: center;
 }
@@ -489,27 +489,6 @@ th {
     margin-top: 12px;
     font-size: 13px;
     text-align: center;
-}
-
-.topbar-status {
-    display: grid;
-    justify-items: end;
-    gap: 6px;
-}
-
-.status-updated {
-    color: #94a3b8;
-    font-size: 12px;
-}
-
-.pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    border-radius: 999px;
-    font-weight: 700;
-    font-size: 13px;
 }
 
 .status-dot {
@@ -882,14 +861,16 @@ th {
     display: grid;
     place-items: center;
     border-radius: 24px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
     border: 1px solid rgba(148, 163, 184, 0.12);
     padding: 20px;
 }
 
 #qrImage {
-    width: 260px;
-    height: 260px;
+    width: 100%;
+    max-width: 260px;
+    height: auto;
+    aspect-ratio: 1 / 1;
     object-fit: contain;
     background: white;
     padding: 14px;
@@ -953,90 +934,6 @@ th {
     color: #e5e7eb;
     font-size: 14px;
     text-align: right;
-}
-
-@media (max-width: 900px) {
-    .qr-card {
-        margin-top: 8px;
-    }
-
-    .qr-visual {
-        min-height: 300px;
-    }
-
-    #qrImage {
-        width: 220px;
-        height: 220px;
-    }
-}
-
-
-@media (max-width: 900px) {
-    .layout {
-        grid-template-columns: 1fr;
-    }
-
-    .sidebar {
-        position: static;
-        height: auto;
-    }
-
-    .grid.cards,
-    .two-col {
-        grid-template-columns: 1fr;
-    }
-
-    .topbar,
-    .section-head {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .settings-head {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .setting-card,
-    .setting-card-wide {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .log-limit-box {
-        justify-items: stretch;
-        width: 100%;
-        min-width: 0;
-    }
-
-    .log-limit-box input {
-        width: 100%;
-        text-align: left;
-    }
-
-    .settings-footer {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .settings-footer button {
-        width: 100%;
-    }
-}
-
-@media (max-width: 640px) {
-    .topbar-status {
-        justify-items: start;
-    }
-
-    .number-control {
-        justify-items: stretch;
-        width: 100%;
-    }
-
-    .number-control input {
-        width: 100%;
-    }
 }
 
 
@@ -1139,7 +1036,89 @@ th {
     word-break: break-all;
 }
 
+
+
+@media (max-width: 640px) {
+    .topbar-status {
+        justify-items: start;
+    }
+
+    .number-control {
+        justify-items: stretch;
+        width: 100%;
+    }
+
+    .number-control input {
+        width: 100%;
+    }
+}
+
+
 @media (max-width: 900px) {
+    .qr-card {
+        margin-top: 8px;
+    }
+
+    .qr-visual {
+        min-height: 300px;
+    }
+
+    #qrImage {
+        width: 220px;
+        height: 220px;
+    }
+
+    .layout {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        position: static;
+        height: auto;
+    }
+
+    .grid.cards,
+    .two-col {
+        grid-template-columns: 1fr;
+    }
+
+    .topbar,
+    .section-head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .settings-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .setting-card,
+    .setting-card-wide {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .log-limit-box {
+        justify-items: stretch;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .log-limit-box input {
+        width: 100%;
+        text-align: left;
+    }
+
+    .settings-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .settings-footer button {
+        width: 100%;
+    }
+
     .device-card {
         flex-direction: column;
     }
@@ -1147,4 +1126,96 @@ th {
     .device-meta {
         grid-template-columns: 1fr;
     }
+}
+
+
+
+
+/* --- TOPBAR STATUS UI --- */
+.topbar-status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 50px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+}
+
+/* Varian Warna Status */
+.status-online {
+    background: rgba(16, 185, 129, 0.15); /* Emerald tint */
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status-offline {
+    background: rgba(239, 68, 68, 0.15); /* Red tint */
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.status-warning {
+    background: rgba(245, 158, 11, 0.15); /* Amber tint */
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.status-updated {
+    color: #94a3b8;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+
+/* --- ANIMASI TIMER QR CODE --- */
+#qrTimerContainer {
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 10px 20px;
+    border-radius: 50px;
+    font-weight: 800;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.timer-pulse {
+    color: #f59e0b; /* Kuning Warning */
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    animation: pulseTimerNormal 1.5s infinite;
+}
+
+.timer-danger {
+    color: #ef4444; /* Merah Danger */
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    animation: pulseTimerFast 0.5s infinite;
+}
+
+@keyframes pulseTimerNormal {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(0.98); }
+}
+
+@keyframes pulseTimerFast {
+    0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(239, 68, 68, 0); }
+    50% { opacity: 0.9; transform: scale(1.03); box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
 }

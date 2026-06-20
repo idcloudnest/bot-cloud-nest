@@ -4,6 +4,64 @@ let logs = [];
 
 const $ = (selector) => document.querySelector(selector);
 
+let qrTimerInterval = null;
+
+function stopQrTimer() {
+    if (qrTimerInterval) {
+        clearInterval(qrTimerInterval);
+        qrTimerInterval = null;
+    }
+    const container = document.getElementById('qrTimerContainer');
+    if (container) {
+        container.style.display = 'none';
+        container.classList.remove('timer-pulse', 'timer-danger');
+    }
+}
+
+// Menerima waktu pembuatan (updatedAt) dan batas kadaluarsa (timeoutMs)
+function startQrTimer(expireAtMs) {
+    stopQrTimer();
+
+    const container = document.getElementById('qrTimerContainer');
+    const countText = document.getElementById('qrTimerCount');
+
+    if (!container || !countText || !expireAtMs) return;
+
+    // Cegah timer berjalan jika expireAt sudah kedaluwarsa dari sananya (menghindari bug)
+    if (expireAtMs <= Date.now()) return;
+
+    const updateTimer = () => {
+        const remainingSec = Math.ceil((expireAtMs - Date.now()) / 1000);
+
+        if (remainingSec <= 0) {
+            countText.textContent = "0";
+            stopQrTimer();
+
+            // FRONTEND FORCE KILL: Paksa UI kembali memunculkan tombol Generate
+            renderStatus({
+                connection: 'idle',
+                connected: false,
+                message: 'QR Code Kadaluarsa'
+            });
+            return;
+        }
+
+        countText.textContent = remainingSec;
+
+        if (remainingSec <= 10) {
+            container.classList.remove('timer-pulse');
+            container.classList.add('timer-danger');
+        } else {
+            container.classList.add('timer-pulse');
+            container.classList.remove('timer-danger');
+        }
+    };
+
+    container.style.display = 'inline-flex';
+    updateTimer();
+    qrTimerInterval = setInterval(updateTimer, 1000);
+}
+
 const statusPill = $('#statusPill');
 const connectionText = $('#connectionText');
 const $lastError = $('#lastError');
@@ -15,6 +73,10 @@ const qrImage = $('#qrImage');
 const qrEmpty = $('#qrEmpty');
 const logsList = $('#logsList');
 const sessionsTable = $('#sessionsTable');
+
+const $deviceActions = $('#deviceActions')
+
+const $btnGenerateQr = $('#btnGenerateQr');
 
 let latestStatus = {};
 let latestQrPayload = null;
@@ -145,6 +207,7 @@ function getStatusLabel(connection, message) {
 
 function renderStatus(status = {}) {
     latestStatus = status;
+
     const connection =
         status.connection ||
         status.message ||
@@ -205,6 +268,8 @@ function renderStatus(status = {}) {
 }
 
 function renderQr(payload = null) {
+    console.log(payload);
+
     latestQrPayload = payload;
     renderQrState();
 }
@@ -243,10 +308,9 @@ function renderQrState() {
                 : null
         );
 
-    const updatedAt =
-        payload?.updatedAt ||
-        payload?.qr?.updatedAt ||
-        null;
+    const updatedAt = payload?.updatedAt || payload?.qr?.updatedAt || null;
+
+    const expireAt = payload?.expireAt || payload?.qr?.expireAt || null;
 
     const setBadge = (text, type) => {
         if (!qrStateBadge) return;
@@ -289,6 +353,7 @@ function renderQrState() {
 
     // 1. CONNECTED
     if (connected || connection === 'connected' || connection === 'open') {
+        stopQrTimer();
         qrImage.removeAttribute('src');
         qrImage.style.display = 'none';
         qrEmpty.style.display = 'grid';
@@ -317,6 +382,10 @@ function renderQrState() {
         qrImage.style.display = 'block';
         qrEmpty.style.display = 'none';
 
+        if (expireAt && !qrTimerInterval) {
+            startQrTimer(expireAt);
+        }
+
         setBadge('QR Ready', 'ready');
         setHint(
             'Silakan scan QR ini dari WhatsApp > Linked Devices. QR bisa berubah otomatis kalau expired.',
@@ -335,52 +404,62 @@ function renderQrState() {
         connection === 'reconnecting' ||
         connection === 'close' ||
         connection === 'logged_out' ||
-        connection === 'error'
+        connection === 'error' ||
+        connection === 'idle'
     ) {
+        stopQrTimer();
         qrImage.removeAttribute('src');
         qrImage.style.display = 'none';
         qrEmpty.style.display = 'grid';
 
+        if ($btnGenerateQr) {
+            $btnGenerateQr.style.display = 'none'; // Sembunyikan default
+            $btnGenerateQr.disabled = false;
+            $btnGenerateQr.innerHTML = '<i class="fas fa-qrcode"></i> Generate QR Code';
+        }
+
         setBadge('Disconnected', 'disconnected');
 
-        if (connection === 'logged_out') {
-            setEmptyContent(
-                'Sesi WhatsApp keluar',
-                'Bot sudah logout dari WhatsApp. Untuk menyambungkan lagi, tunggu QR baru muncul.',
-                '🚪'
-            );
-            setHint(
-                'Session sudah keluar. Jika QR belum muncul, refresh halaman atau restart bot.',
-                'danger'
-            );
-        } else if (connection === 'reconnecting') {
-            setEmptyContent(
-                'Menghubungkan ulang...',
-                'Koneksi ke WhatsApp sempat terputus. Bot sedang mencoba reconnect otomatis.',
-                '🔄'
-            );
-            setHint(
-                'Mohon tunggu beberapa detik. Jika reconnect gagal, QR baru biasanya akan muncul.',
-                'warning'
-            );
-        } else {
-            setEmptyContent(
-                'Koneksi terputus',
-                'Bot belum terhubung ke WhatsApp saat ini.',
-                '⚠️'
-            );
-            setHint(
-                'Periksa log untuk detail error. Jika perlu, restart bot atau scan ulang QR.',
-                'danger'
-            );
+        // Munculkan tombol KHUSUS jika statusnya logged_out atau idle
+        if (connection === 'logged_out' || connection === 'idle') {
+            if (status.message === 'QR Code Kadaluarsa') {
+                setEmptyContent(
+                    'QR Code Kadaluarsa',
+                    'Waktu untuk scan QR (60 detik) sudah habis. Demi keamanan, sesi dihentikan sementara.',
+                    '⏱️'
+                );
+                setHint(
+                    'Silakan klik tombol di bawah untuk men-generate QR yang baru.',
+                    'danger'
+                );
+            } else {
+                setEmptyContent(
+                    'Siap Menghubungkan',
+                    'Sesi WhatsApp kosong. Silakan klik tombol di bawah untuk memunculkan QR Code.',
+                    '🚪'
+                );
+                setHint(
+                    'Klik tombol Generate QR untuk mulai menghubungkan bot.',
+                    'warning'
+                );
+            }
+
+            if ($btnGenerateQr) $btnGenerateQr.style.display = 'inline-block'; // Tampilkan tombol
+        }
+        else if (connection === 'reconnecting') {
+            setEmptyContent('Menghubungkan ulang...', 'Koneksi terputus. Mencoba reconnect otomatis.', '🔄');
+            setHint('Mohon tunggu beberapa detik...', 'warning');
+        }
+        else {
+            setEmptyContent('Koneksi terputus', 'Bot belum terhubung ke WhatsApp saat ini.', '⚠️');
+            setHint('Periksa log untuk detail error.', 'danger');
         }
 
-        if (qrMainDescription) {
-            qrMainDescription.textContent = 'Koneksi WhatsApp sedang bermasalah atau perlu disambungkan ulang.';
-        }
-
+        if (qrMainDescription) qrMainDescription.textContent = 'Koneksi WhatsApp sedang bermasalah atau perlu disambungkan ulang.';
         return;
     }
+
+    if ($btnGenerateQr) $btnGenerateQr.style.display = 'none';
 
     // 4. STARTING / CONNECTING / WAITING
     qrImage.removeAttribute('src');
@@ -425,63 +504,6 @@ function renderQrState() {
         qrMainDescription.textContent = 'Hubungkan WhatsApp ke bot dengan scan QR dari menu Linked Devices.';
     }
 }
-
-// function renderQr(payload = {}) {
-//     const qrImage = $('#qrImage');
-//     const qrEmpty = $('#qrEmpty');
-//     const qrUpdatedAt = $('#qrUpdatedAt');
-//     const serverTimeValue = $('#serverTimeValue');
-
-//     if (!qrImage || !qrEmpty) return;
-
-//     const qrDataUrl =
-//         payload?.qrDataUrl ||
-//         payload?.qr?.qrDataUrl ||
-//         (
-//             typeof payload === 'string' && payload.startsWith('data:image')
-//                 ? payload
-//                 : null
-//         ) ||
-//         (
-//             typeof payload?.qr === 'string' && payload.qr.startsWith('data:image')
-//                 ? payload.qr
-//                 : null
-//         );
-
-//     const updatedAt =
-//         payload?.updatedAt ||
-//         payload?.qr?.updatedAt ||
-//         null;
-
-//     if (!qrDataUrl) {
-//         qrImage.removeAttribute('src');
-//         qrImage.style.display = 'none';
-//         qrEmpty.style.display = 'grid';
-
-//         if (qrUpdatedAt) {
-//             qrUpdatedAt.textContent = 'QR updated: -';
-//         }
-
-//         return;
-//     }
-
-//     qrImage.src = qrDataUrl;
-//     qrImage.style.display = 'block';
-//     qrEmpty.style.display = 'none';
-
-//     const formattedUpdatedAt = updatedAt
-//         ? formatDate(updatedAt)
-//         : formatDate(new Date().toISOString());
-
-//     if (qrUpdatedAt) {
-//         qrUpdatedAt.textContent = `QR updated: ${formattedUpdatedAt}`;
-//     }
-
-//     // Optional: pakai subtext di card Started At juga
-//     if (serverTimeValue) {
-//         serverTimeValue.textContent = formattedUpdatedAt;
-//     }
-// }
 
 function renderSettings(settings = {}) {
     const ignoreGroupsInput = $('#ignoreGroupsInput');
@@ -620,6 +642,13 @@ function renderConnectedDevice(status = {}) {
         if (devicePlatform) devicePlatform.textContent = '-';
         if (deviceConnectedAt) deviceConnectedAt.textContent = '-';
 
+        // if (document.getElementById('deviceActions')) {
+        //     document.getElementById('deviceActions').style.display = 'none';
+        // }
+        if ($deviceActions) {
+            $deviceActions.style.display = 'none';
+        }
+
         return;
     }
 
@@ -653,6 +682,10 @@ function renderConnectedDevice(status = {}) {
         deviceConnectedAt.textContent = device.connectedAt
             ? formatDate(device.connectedAt)
             : '-';
+    }
+
+    if ($deviceActions) {
+        $deviceActions.style.display = 'flex';
     }
 }
 
@@ -805,7 +838,56 @@ function markSettingsSaved() {
     el.addEventListener('change', markSettingsDirty);
 });
 
-socket.on('status', renderStatus);
+
+// Fungsi untuk update UI Topbar Status
+function updateTopbarStatus(connectionState, lastUpdateDate) {
+    const pill = document.getElementById('statusPill');
+    const pillText = document.getElementById('statusPillText');
+    const icon = document.getElementById('statusIcon');
+    const updatedAt = document.getElementById('statusUpdatedAt');
+
+    // Reset semua class statis
+    pill.className = 'pill';
+    icon.className = '';
+
+    // Tentukan tampilan berdasarkan state
+    if (connectionState === 'open') {
+        pill.classList.add('status-online');
+        icon.className = 'fas fa-check-circle';
+        pillText.textContent = 'Connected';
+    } else if (connectionState === 'connecting') {
+        pill.classList.add('status-warning');
+        icon.className = 'fas fa-circle-notch fa-spin'; // Animasi muter
+        pillText.textContent = 'Connecting...';
+    } else if (connectionState === 'waiting_qr') {
+        pill.classList.add('status-warning');
+        icon.className = 'fas fa-qrcode';
+        pillText.textContent = 'Waiting QR';
+    } else {
+        pill.classList.add('status-offline');
+        icon.className = 'fas fa-times-circle';
+        pillText.textContent = 'Disconnected';
+    }
+
+    // Update waktu (Format: 20/6/2026, 22.26.12)
+    if (lastUpdateDate) {
+        const dateObj = new Date(lastUpdateDate);
+        const formattedTime = dateObj.toLocaleString('id-ID', {
+            day: 'numeric', month: 'numeric', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        }).replace(/:/g, '.'); // Ganti titik dua jadi titik biar pas format Indo
+
+        updatedAt.innerHTML = `<i class="fas fa-clock"></i> Last update: ${formattedTime}`;
+    }
+}
+// socket.on('state', (state) => updateTopbarStatus(state.connection, state.lastStatusUpdate));
+// socket.on('state', (state) => console.log(state));
+socket.on('status', (status) => {
+    // console.log(status);
+
+    updateTopbarStatus(status.connection, status.updatedAt)
+    renderStatus(status)
+});
 socket.on('qr', (payload) => renderQr(payload));
 socket.on('settings', renderSettings);
 socket.on('sessions', renderSessions);
@@ -834,3 +916,69 @@ socket.on('logs:clear', (payload) => {
 });
 
 window.resetSession = resetSession;
+
+// --- ACTION DEVICE: RESTART & DISCONNECT ---
+const btnRestartDevice = $('#btnRestartDevice');
+const btnDisconnectDevice = $('#btnDisconnectDevice');
+
+if (btnRestartDevice) {
+    btnRestartDevice.addEventListener('click', async () => {
+        const confirmed = await showConfirmModal({
+            title: 'Restart Bot?',
+            message: 'Bot akan diputus sementara dan mencoba terhubung kembali. Sesi WA tidak akan dihapus (tidak perlu scan QR ulang).',
+            confirmText: 'Ya, Restart',
+        });
+        if (!confirmed) return;
+
+        showToast('Merestart bot...', 'info');
+        try {
+            const response = await fetch('/api/restart', { method: 'POST' });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error);
+            showToast('Perintah restart berhasil dikirim.', 'success');
+        } catch (error) {
+            showToast(error.message || 'Gagal merestart bot.', 'error');
+        }
+    });
+}
+
+if (btnDisconnectDevice) {
+    btnDisconnectDevice.addEventListener('click', async () => {
+        const confirmed = await showConfirmModal({
+            title: 'Disconnect (Logout)?',
+            message: 'Akses ke akun WhatsApp ini akan dicabut sepenuhnya. Anda harus scan QR lagi untuk menghubungkan bot.',
+            confirmText: 'Ya, Logout',
+        });
+        if (!confirmed) return;
+
+        showToast('Melogout device...', 'warning');
+        try {
+            const response = await fetch('/api/logout', { method: 'POST' });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error);
+            showToast('Berhasil logout dari device.', 'success');
+        } catch (error) {
+            showToast(error.message || 'Gagal logout device.', 'error');
+        }
+    });
+}
+
+// --- ACTION GENERATE QR ---
+
+if ($btnGenerateQr) {
+    $btnGenerateQr.addEventListener('click', async () => {
+        showToast('Menyiapkan QR Code...', 'info');
+        $btnGenerateQr.disabled = true;
+        $btnGenerateQr.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+
+        try {
+            const response = await fetch('/api/generate-qr', { method: 'POST' });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error);
+        } catch (error) {
+            showToast(error.message || 'Gagal membuat QR.', 'error');
+            $btnGenerateQr.disabled = false;
+            $btnGenerateQr.innerHTML = '<i class="fas fa-qrcode"></i> Generate QR Code';
+        }
+    });
+}

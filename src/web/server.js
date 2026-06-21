@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { config } from '../config.js';
 import {
     clearLogs,
+    deleteMultipleLogs,
     getLogs,
     getSettings,
     getState,
@@ -41,18 +42,23 @@ export function startWebServer() {
     app.delete('/api/logs', (_req, res) => {
         res.json(clearLogs())
     })
+    // Endpoint hapus banyak log (Bulk Delete)
+    app.post('/api/logs/bulk-delete', (req, res) => {
+        const { ids } = req.body;
+
+        if (Array.isArray(ids) && ids.length > 0) {
+            deleteMultipleLogs(ids);
+            res.json({ ok: true });
+        } else {
+            res.status(400).json({ error: 'Tidak ada ID yang dipilih' });
+        }
+    });
 
     app.get('/api/settings', (_req, res) => {
         res.json(getSettings())
     })
 
     app.patch('/api/settings', (req, res) => {
-        // const settings = updateSettings({
-        //     ignoreGroups: Boolean(req.body.ignoreGroups),
-        //     ignorePrivates: Boolean(req.body.ignorePrivates)
-        // })
-
-        // res.json(settings)
         res.json(updateSettings(req.body))
     })
 
@@ -111,7 +117,7 @@ export function startWebServer() {
     });
 
     io.on('connection', (socket) => {
-        console.log('Client connected:', socket.id);
+        // console.log('Client connected:', socket.id);
 
         const currentState = getState();
 
@@ -154,6 +160,9 @@ export function startWebServer() {
     onState('logs:clear', (payload) => {
         io.emit('logs:clear', payload)
     })
+    onState('logs:deleted_multiple', (payload) => {
+        io.emit('logs:deleted_multiple', payload);
+    });
     // ===== LOGS SETTINGS =====
 
     server.listen(config.appPort, () => {

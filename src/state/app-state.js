@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { readJson, writeJson } from '../utils/storage.js';
+import { getAllSessions } from '../services/session.service.js';
 
 const emitter = new EventEmitter();
 
@@ -139,6 +140,10 @@ export function setQr(qr) {
     return state.qr;
 }
 
+export function notifySessionsUpdate() {
+    emitter.emit('sessions:update', getAllSessions());
+}
+
 export function addLog(type, payload) {
     const item = {
         id: crypto.randomUUID(),
@@ -175,6 +180,20 @@ export function clearLogs() {
     emitter.emit('logs:clear', payload);
 
     return payload;
+}
+
+export function deleteMultipleLogs(ids) {
+    const initialLength = state.logs.length;
+
+    // Buang log yang ID-nya ada di dalam array 'ids'
+    state.logs = state.logs.filter((log) => !ids.includes(log.id));
+
+    if (state.logs.length !== initialLength) {
+        persistState();
+        emitter.emit('logs:deleted_multiple', { ids }); // Beritahu frontend
+        return true;
+    }
+    return false;
 }
 
 export function setConnection(connection, extra = {}) {

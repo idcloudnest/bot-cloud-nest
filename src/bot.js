@@ -88,7 +88,7 @@ export async function startBot() {
             if (connection === 'open') {
                 isConnectedYet = true;
                 setQr(null);
-                if (forceKillTimeout) clearTimeout(forceKillTimeout); // Bersihkan kill switch
+                if (forceKillTimeout) clearTimeout(forceKillTimeout);
 
                 const connectedDevice = {
                     id: sock.user?.id || null,
@@ -97,7 +97,7 @@ export async function startBot() {
                     connectedAt: new Date().toISOString(),
                 };
 
-                setStatus({ connection: 'connected', connected: true, message: 'WhatsApp connected', device: connectedDevice });
+                setStatus({ connection: 'connected', connected: true, message: 'WhatsApp connected', device: connectedDevice, lastError: null, });
                 addLog('system', { text: `✅ WhatsApp bot connected as ${connectedDevice.name || 'Unknown'}.` });
             }
 

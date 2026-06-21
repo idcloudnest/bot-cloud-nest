@@ -64,7 +64,7 @@ function startQrTimer(expireAtMs) {
 
 const statusPill = $('#statusPill');
 const connectionText = $('#connectionText');
-const $lastError = $('#lastError');
+const lastError = $('#lastError');
 // const $connectionError = $('#connectionError');
 const $startedAt = $('#startedAtValue');
 const $serverTime = $('#serverTimeValue');
@@ -223,7 +223,6 @@ function renderStatus(status = {}) {
     const statusPillText = $('#statusPillText');
     const statusUpdatedAt = $('#statusUpdatedAt');
     const connectionText = $('#connectionText');
-    const lastError = $('#lastError');
     const startedAtValue = $('#startedAtValue');
     const serverTimeValue = $('#serverTimeValue');
 
@@ -269,8 +268,6 @@ function renderStatus(status = {}) {
 }
 
 function renderQr(payload = null) {
-    console.log(payload);
-
     latestQrPayload = payload;
     renderQrState();
 }
@@ -536,20 +533,28 @@ function renderLogs() {
 
     if (!logs.length) {
         logsList.innerHTML = '<div class="empty">Belum ada log.</div>';
+        handleLogSelection(); // Reset tombol
         return;
     }
 
     logsList.innerHTML = logs.map((log) => {
         return `
-      <article class="log-item">
-        <div class="log-meta">
-          <span>${escapeHtml(log.type)} ${log.jid ? `• ${escapeHtml(log.jid)}` : ''}</span>
-          <span>${formatDate(log.timestamp)}</span>
+      <article class="log-item" style="display: flex; gap: 12px; align-items: flex-start;">
+        <div style="padding-top: 2px;">
+            <input type="checkbox" class="log-checkbox" value="${log.id}" onchange="handleLogSelection()" style="cursor: pointer; width: 16px; height: 16px;">
         </div>
-        <div class="log-text">${escapeHtml(log.payload.text || '')}</div>
+        <div style="flex: 1;">
+            <div class="log-meta">
+              <span>${escapeHtml(log.type)} ${log.jid ? `• ${escapeHtml(log.jid)}` : ''}</span>
+              <span>${formatDate(log.timestamp)}</span>
+            </div>
+            <div class="log-text">${escapeHtml(log.payload.text || '')}</div>
+        </div>
       </article>
     `;
     }).join('');
+
+    handleLogSelection(); // Refresh status tombol
 }
 
 function renderSessions(sessions = []) {
@@ -884,10 +889,7 @@ function updateTopbarStatus(connectionState, lastUpdateDate) {
     }
 }
 // socket.on('state', (state) => updateTopbarStatus(state.connection, state.lastStatusUpdate));
-// socket.on('state', (state) => console.log(state));
 socket.on('status', (status) => {
-    // console.log(status);
-
     updateTopbarStatus(status.connection, status.updatedAt)
     renderStatus(status)
 });
@@ -915,6 +917,55 @@ socket.on('logs:clear', (payload) => {
 
     if (feedback) {
         feedback.textContent = `${payload.clearedCount || 0} log berhasil dibersihkan.`;
+    }
+});
+socket.on('logs:deleted_multiple', (payload) => {
+    // Filter/buang semua log yang ID-nya ada di array payload.ids
+    logs = logs.filter((l) => !payload.ids.includes(l.id));
+    renderLogs();
+});
+
+// Menampilkan/menyembunyikan tombol "Hapus Terpilih"
+window.handleLogSelection = () => {
+    const selected = document.querySelectorAll('.log-checkbox:checked');
+    const btn = document.getElementById('btnDeleteSelected');
+
+    if (!btn) return;
+
+    if (selected.length > 0) {
+        btn.style.display = 'inline-flex';
+        btn.querySelector('span').textContent = selected.length;
+    } else {
+        btn.style.display = 'none';
+    }
+};
+
+// Eksekusi ketika tombol "Hapus Terpilih" diklik
+document.getElementById('btnDeleteSelected')?.addEventListener('click', async () => {
+    // Kumpulkan semua value (ID log) dari checkbox yang dicentang
+    const selectedIds = Array.from(document.querySelectorAll('.log-checkbox:checked')).map(cb => cb.value);
+
+    if (!selectedIds.length) return;
+
+    const confirmed = await showConfirmModal({
+        title: 'Hapus Log Terpilih?',
+        message: `Anda akan menghapus ${selectedIds.length} log dari layar. Lanjutkan?`,
+        confirmText: 'Ya, Hapus',
+    });
+
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch('/api/logs/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: selectedIds })
+        });
+
+
+        if (!response.ok) throw new Error('Gagal menghapus log');
+    } catch (error) {
+        showToast(error.message, 'error');
     }
 });
 

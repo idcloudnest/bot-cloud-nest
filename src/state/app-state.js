@@ -42,7 +42,7 @@ const state = {
         device: null,
     },
     qr: null,
-    logs: [],
+    logs: persistedState.logs || [],
     settings: {
         ignoreGroups:
             persistedState.settings?.ignoreGroups ??

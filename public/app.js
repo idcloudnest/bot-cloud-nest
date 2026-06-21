@@ -77,6 +77,7 @@ const sessionsTable = $('#sessionsTable');
 const $deviceActions = $('#deviceActions')
 
 const $btnGenerateQr = $('#btnGenerateQr');
+const generateQTrText = `<i class="fas fa-qrcode"></i> Generate QR Code`
 
 let latestStatus = {};
 let latestQrPayload = null;
@@ -257,11 +258,11 @@ function renderStatus(status = {}) {
             : '-';
     }
 
-    if (serverTimeValue) {
-        serverTimeValue.textContent = status.updatedAt
-            ? formatDate(status.updatedAt)
-            : 'Server local time';
-    }
+    // if (serverTimeValue) {
+    //     serverTimeValue.textContent = status.updatedAt
+    //         ? formatDate(status.updatedAt)
+    //         : 'Server local time';
+    // }
 
     renderQrState();
     renderConnectedDevice(status);
@@ -320,7 +321,8 @@ function renderQrState() {
 
     const setHint = (text, type) => {
         if (!qrHintBox) return;
-        qrHintBox.textContent = text;
+        // qrHintBox.textContent = text;
+        qrHintBox.innerHTML = text;
         qrHintBox.className = `qr-hint ${type}`;
     };
 
@@ -332,7 +334,8 @@ function renderQrState() {
         }
 
         if (qrStateTitle) qrStateTitle.textContent = title;
-        if (qrStateDescription) qrStateDescription.textContent = description;
+        // if (qrStateDescription) qrStateDescription.textContent = description;
+        if (qrStateDescription) qrStateDescription.innerHTML = description;
     };
 
     if (qrConnectionText) {
@@ -415,7 +418,7 @@ function renderQrState() {
         if ($btnGenerateQr) {
             $btnGenerateQr.style.display = 'none'; // Sembunyikan default
             $btnGenerateQr.disabled = false;
-            $btnGenerateQr.innerHTML = '<i class="fas fa-qrcode"></i> Generate QR Code';
+            $btnGenerateQr.innerHTML = generateQTrText
         }
 
         setBadge('Disconnected', 'disconnected');
@@ -429,17 +432,17 @@ function renderQrState() {
                     '⏱️'
                 );
                 setHint(
-                    'Silakan klik tombol di bawah untuk men-generate QR yang baru.',
+                    `Silakan klik tombol <b>${generateQTrText}</b> untuk men-generate QR yang baru.`,
                     'danger'
                 );
             } else {
                 setEmptyContent(
                     'Siap Menghubungkan',
-                    'Sesi WhatsApp kosong. Silakan klik tombol di bawah untuk memunculkan QR Code.',
+                    `Sesi WhatsApp kosong. Silakan klik tombol <b>${generateQTrText}</b> untuk memunculkan QR Code.`,
                     '🚪'
                 );
                 setHint(
-                    'Klik tombol Generate QR untuk mulai menghubungkan bot.',
+                    `Klik tombol <b>${generateQTrText}</b> untuk mulai menghubungkan bot.`,
                     'warning'
                 );
             }

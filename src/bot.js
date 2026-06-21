@@ -15,7 +15,7 @@ let sock = null;
 let isStarting = false;
 
 // KEMBALIKAN KE 60 DETIK: Waktu kadaluarsa QR
-const QR_TIMEOUT_MS = 5000;
+const QR_TIMEOUT_MS = 60000;
 
 export function getSocket() {
     return sock;
@@ -29,6 +29,7 @@ export async function startBot() {
     let isConnectedYet = false;
     let qrExpireAt = null;
     let forceKillTimeout = null; // Kill switch manual
+    let isTimeoutReached = false;
 
     try {
         setStatus({ connection: 'starting', connected: false, message: 'Starting bot...' });
@@ -61,12 +62,18 @@ export async function startBot() {
                 if (!qrExpireAt) {
                     qrExpireAt = Date.now() + QR_TIMEOUT_MS;
 
+                    // --- TAMBAHKAN LOG DI SINI ---
+                    addLog('system', {
+                        text: '📱 QR Code berhasil di-generate. Silakan scan melalui WhatsApp.'
+                    });
+
                     // KILL SWITCH: Jaga-jaga jika Baileys freeze dan tidak memutus koneksi
                     forceKillTimeout = setTimeout(() => {
                         if (!isConnectedYet && sock) {
+                            isTimeoutReached = true; // <--- TANDAI BAHWA INI MURNI TIMEOUT
                             sock.ws.close();
                         }
-                    }, QR_TIMEOUT_MS + 1000); // Diberi ekstra 2 detik dari timer UI
+                    }, QR_TIMEOUT_MS + 500);
                 }
 
                 const qrDataUrl = await QRCode.toDataURL(qr);
@@ -104,7 +111,8 @@ export async function startBot() {
                 sock = null;
                 setQr(null);
 
-                const isQrTimeout = statusCode === DisconnectReason.timedOut || statusCode === 408 || !isConnectedYet;
+                const isQrTimeout = isTimeoutReached || (!isConnectedYet && (statusCode === DisconnectReason.timedOut || statusCode === 408));
+
                 const isLoggedOut = statusCode === DisconnectReason.loggedOut;
                 const shouldReconnect = !isLoggedOut && !isQrTimeout;
 

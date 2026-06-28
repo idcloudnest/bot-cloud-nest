@@ -3,19 +3,20 @@ import makeWASocket, {
     useMultiFileAuthState,
 } from '@whiskeysockets/baileys';
 
-import { Boom } from '@hapi/boom';
 import pino from 'pino';
 import QRCode from 'qrcode';
 
 import { handleMessage } from './handlers/message.handler.js';
 import { addLog, setQr, setStatus } from './state/app-state.js';
 import { removeDirSafe } from './utils/fs.js';
+import { logger } from './utils/logger.js';
+
+const AUTH_DIR = 'auth_info_baileys';
+const QR_TIMEOUT_MS = 60_000;
+const RECONNECT_DELAY_MS = 2_000;
 
 let sock = null;
 let isStarting = false;
-
-// KEMBALIKAN KE 60 DETIK: Waktu kadaluarsa QR
-const QR_TIMEOUT_MS = 60000;
 
 export function getSocket() {
     return sock;
@@ -25,16 +26,16 @@ export async function startBot() {
     if (isStarting) return sock;
     isStarting = true;
 
-    // Pastikan 3 variabel ini berada di dalam fungsi startBot
+    // State per-sesi koneksi (di-reset tiap kali startBot dipanggil).
     let isConnectedYet = false;
     let qrExpireAt = null;
-    let forceKillTimeout = null; // Kill switch manual
+    let forceKillTimeout = null; // Kill switch manual kalau Baileys freeze.
     let isTimeoutReached = false;
 
     try {
         setStatus({ connection: 'starting', connected: false, message: 'Starting bot...' });
 
-        const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
+        const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
         sock = makeWASocket({
             auth: state,
@@ -47,38 +48,12 @@ export async function startBot() {
 
         sock.ev.on('creds.update', saveCreds);
 
-        console.log("\n\n\n\n\n");
-
         sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect, qr } = update;
-
-            console.log('connection.update:', {
-                connection,
-                hasQr: Boolean(qr),
-            });
+            logger.debug({ connection, hasQr: Boolean(qr) }, 'connection.update');
 
             if (qr) {
-                // Set waktu kadaluarsa HANYA SEKALI
-                if (!qrExpireAt) {
-                    qrExpireAt = Date.now() + QR_TIMEOUT_MS;
-
-                    // --- TAMBAHKAN LOG DI SINI ---
-                    addLog('system', {
-                        text: '📱 QR Code berhasil di-generate. Silakan scan melalui WhatsApp.'
-                    });
-
-                    // KILL SWITCH: Jaga-jaga jika Baileys freeze dan tidak memutus koneksi
-                    forceKillTimeout = setTimeout(() => {
-                        if (!isConnectedYet && sock) {
-                            isTimeoutReached = true; // <--- TANDAI BAHWA INI MURNI TIMEOUT
-                            sock.ws.close();
-                        }
-                    }, QR_TIMEOUT_MS + 500);
-                }
-
-                const qrDataUrl = await QRCode.toDataURL(qr);
-                setQr({ qr, qrDataUrl, expireAt: qrExpireAt });
-                setStatus({ connection: 'qr', connected: false, message: 'Waiting for QR scan' });
+                await handleQrUpdate(qr);
             }
 
             if (connection === 'connecting') {
@@ -86,49 +61,11 @@ export async function startBot() {
             }
 
             if (connection === 'open') {
-                isConnectedYet = true;
-                setQr(null);
-                if (forceKillTimeout) clearTimeout(forceKillTimeout);
-
-                const connectedDevice = {
-                    id: sock.user?.id || null,
-                    name: sock.user?.name || null,
-                    platform: sock.user?.platform || 'WhatsApp',
-                    connectedAt: new Date().toISOString(),
-                };
-
-                setStatus({ connection: 'connected', connected: true, message: 'WhatsApp connected', device: connectedDevice, lastError: null, });
-                addLog('system', { text: `✅ WhatsApp bot connected as ${connectedDevice.name || 'Unknown'}.` });
+                handleConnectionOpen();
             }
 
             if (connection === 'close') {
-                qrExpireAt = null; // WAJIB DI-RESET AGAR BISA GENERATE ULANG
-                if (forceKillTimeout) clearTimeout(forceKillTimeout);
-
-                const statusCode = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.statusCode || 500;
-                const errorMessage = lastDisconnect?.error?.message || `Closed with status ${statusCode}`;
-
-                sock = null;
-                setQr(null);
-
-                const isQrTimeout = isTimeoutReached || (!isConnectedYet && (statusCode === DisconnectReason.timedOut || statusCode === 408));
-
-                const isLoggedOut = statusCode === DisconnectReason.loggedOut;
-                const shouldReconnect = !isLoggedOut && !isQrTimeout;
-
-                if (isQrTimeout) {
-                    setStatus({ connection: 'idle', connected: false, message: 'QR Code Kadaluarsa', lastError: errorMessage });
-                    addLog('system', { text: '⏱️ Waktu scan QR habis. Bot disetop, silakan generate ulang.' });
-                    setTimeout(() => removeDirSafe('auth_info_baileys'), 1000);
-                } else if (isLoggedOut) {
-                    setStatus({ connection: 'idle', connected: false, message: 'Sesi kosong. Silakan klik Generate QR.' });
-                    addLog('system', { text: 'Session logged out. Menyiapkan untuk QR baru...' });
-                    setTimeout(() => removeDirSafe('auth_info_baileys'), 1000);
-                } else if (shouldReconnect) {
-                    setStatus({ connection: 'reconnecting', connected: false, message: 'Reconnecting...', lastError: errorMessage });
-                    addLog('system', { text: `❌ Terputus: ${errorMessage}. Mencoba reconnect otomatis...` });
-                    setTimeout(() => { startBot().catch(e => console.error(e)) }, 2000);
-                }
+                handleConnectionClose(lastDisconnect);
             }
         });
 
@@ -145,6 +82,83 @@ export async function startBot() {
         throw error;
     } finally {
         isStarting = false;
+    }
+
+    // --- Handler internal (closure atas state per-sesi di atas) ---
+
+    async function handleQrUpdate(qr) {
+        // Set waktu kadaluarsa & kill switch hanya sekali per sesi.
+        if (!qrExpireAt) {
+            qrExpireAt = Date.now() + QR_TIMEOUT_MS;
+            addLog('system', { text: '📱 QR Code berhasil di-generate. Silakan scan melalui WhatsApp.' });
+
+            forceKillTimeout = setTimeout(() => {
+                if (!isConnectedYet && sock) {
+                    isTimeoutReached = true;
+                    sock.ws.close();
+                }
+            }, QR_TIMEOUT_MS + 500);
+        }
+
+        const qrDataUrl = await QRCode.toDataURL(qr);
+        setQr({ qr, qrDataUrl, expireAt: qrExpireAt });
+        setStatus({ connection: 'qr', connected: false, message: 'Waiting for QR scan' });
+    }
+
+    function handleConnectionOpen() {
+        isConnectedYet = true;
+        setQr(null);
+        if (forceKillTimeout) clearTimeout(forceKillTimeout);
+
+        const device = {
+            id: sock.user?.id || null,
+            name: sock.user?.name || null,
+            platform: sock.user?.platform || 'WhatsApp',
+            connectedAt: new Date().toISOString(),
+        };
+
+        setStatus({
+            connection: 'connected',
+            connected: true,
+            message: 'WhatsApp connected',
+            device,
+            lastError: null,
+        });
+        addLog('system', { text: `✅ WhatsApp bot connected as ${device.name || 'Unknown'}.` });
+    }
+
+    function handleConnectionClose(lastDisconnect) {
+        qrExpireAt = null; // Wajib di-reset agar bisa generate ulang.
+        if (forceKillTimeout) clearTimeout(forceKillTimeout);
+
+        const statusCode =
+            lastDisconnect?.error?.output?.statusCode ||
+            lastDisconnect?.error?.statusCode ||
+            500;
+        const errorMessage = lastDisconnect?.error?.message || `Closed with status ${statusCode}`;
+
+        sock = null;
+        setQr(null);
+
+        const isQrTimeout =
+            isTimeoutReached ||
+            (!isConnectedYet && (statusCode === DisconnectReason.timedOut || statusCode === 408));
+        const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+        const shouldReconnect = !isLoggedOut && !isQrTimeout;
+
+        if (isQrTimeout) {
+            setStatus({ connection: 'idle', connected: false, message: 'QR Code Kadaluarsa', lastError: errorMessage });
+            addLog('system', { text: '⏱️ Waktu scan QR habis. Bot disetop, silakan generate ulang.' });
+            setTimeout(() => removeDirSafe(AUTH_DIR), 1000);
+        } else if (isLoggedOut) {
+            setStatus({ connection: 'idle', connected: false, message: 'Sesi kosong. Silakan klik Generate QR.' });
+            addLog('system', { text: 'Session logged out. Menyiapkan untuk QR baru...' });
+            setTimeout(() => removeDirSafe(AUTH_DIR), 1000);
+        } else if (shouldReconnect) {
+            setStatus({ connection: 'reconnecting', connected: false, message: 'Reconnecting...', lastError: errorMessage });
+            addLog('system', { text: `❌ Terputus: ${errorMessage}. Mencoba reconnect otomatis...` });
+            setTimeout(() => startBot().catch((e) => logger.error(e, 'reconnect failed')), RECONNECT_DELAY_MS);
+        }
     }
 }
 

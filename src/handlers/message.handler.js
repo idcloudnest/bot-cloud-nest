@@ -1,12 +1,13 @@
 // Tambahkan getSettings di baris import
 import { addLog, notifySessionsUpdate, getSettings } from '../state/app-state.js';
 import { getSession, updateSession, clearSession } from '../services/session.service.js';
+import { extractMessageText } from '../utils/formatter.js';
 
 export async function handleMessage(sock, msg) {
     if (!msg.message || msg.key.fromMe) return;
 
     const jid = msg.key.remoteJid;
-    const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
+    const text = extractMessageText(msg);
     if (!text) return;
 
     // --- 1. CEK SETTINGAN DARI DASHBOARD ---

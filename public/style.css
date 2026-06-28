@@ -26,6 +26,14 @@ body {
     color: var(--text);
 }
 
+h1,
+h2,
+h3,
+p {
+    margin: 0;
+}
+
+/* ===== Layout ===== */
 .layout {
     display: grid;
     grid-template-columns: 280px 1fr;
@@ -56,13 +64,6 @@ body {
     place-items: center;
     background: rgba(56, 189, 248, .16);
     font-size: 24px;
-}
-
-h1,
-h2,
-h3,
-p {
-    margin: 0;
 }
 
 .brand h1 {
@@ -114,21 +115,7 @@ p {
     margin-bottom: 6px;
 }
 
-.pill.good {
-    background: rgba(34, 197, 94, .15);
-    color: var(--good);
-}
-
-.pill.warning {
-    background: rgba(245, 158, 11, .15);
-    color: var(--warn);
-}
-
-.pill.bad {
-    background: rgba(239, 68, 68, .15);
-    color: var(--bad);
-}
-
+/* ===== Cards & panels ===== */
 .grid.cards {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -168,31 +155,6 @@ p {
     align-items: center;
 }
 
-.qr-box {
-    padding: 10px;
-    gap: 10px;
-    min-height: 240px;
-    display: grid;
-    place-items: center;
-    background: var(--panel-soft);
-    border-radius: 22px;
-    border: 1px dashed var(--border);
-}
-
-.qr-box img {
-    max-width: 220px;
-    border-radius: 14px;
-    background: white;
-    padding: 5px;
-    display: none;
-}
-
-.empty {
-    color: var(--muted);
-    text-align: center;
-    padding: 24px;
-}
-
 .section-head {
     display: flex;
     justify-content: space-between;
@@ -201,8 +163,21 @@ p {
     margin-bottom: 18px;
 }
 
-.form-grid,
-.switches {
+.section-actions {
+    display: inline-flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.empty {
+    color: var(--muted);
+    text-align: center;
+    padding: 24px;
+}
+
+/* ===== Forms ===== */
+.form-grid {
     display: grid;
     gap: 14px;
 }
@@ -250,11 +225,26 @@ button:hover {
     background: linear-gradient(135deg, #ef4444, #b91c1c);
 }
 
-.section-actions {
-    display: flex;
-    gap: 10px;
+.button-secondary {
+    background: rgba(148, 163, 184, 0.14);
+    color: var(--text);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.button-secondary:hover {
+    background: rgba(148, 163, 184, 0.22);
+}
+
+.button-sm {
+    padding: 10px 16px;
+    font-size: 13px;
+    display: inline-flex;
     align-items: center;
-    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.button-hidden {
+    display: none;
 }
 
 .feedback {
@@ -262,31 +252,61 @@ button:hover {
     color: var(--muted);
 }
 
-.switch-row {
-    display: flex;
-    justify-content: space-between;
+/* ===== Status pill (single source) ===== */
+.pill {
+    display: inline-flex;
     align-items: center;
-    padding: 16px;
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    background: rgba(31, 41, 55, .58);
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 50px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
 }
 
-.switch-row strong {
-    display: block;
-    color: var(--text);
-    margin-bottom: 4px;
+.pill-success {
+    color: var(--good);
+    background: rgba(34, 197, 94, 0.15);
+    border-color: rgba(34, 197, 94, 0.3);
 }
 
-.switch-row small {
+.pill-info {
+    color: var(--accent);
+    background: rgba(56, 189, 248, 0.15);
+    border-color: rgba(56, 189, 248, 0.3);
+}
+
+.pill-warning {
+    color: var(--warn);
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.pill-danger {
+    color: var(--bad);
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.topbar-status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.status-updated {
     color: var(--muted);
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
-.switch-row input {
-    width: 20px;
-    height: 20px;
-}
-
+/* ===== Tables ===== */
 .table-wrap {
     overflow-x: auto;
 }
@@ -308,6 +328,7 @@ th {
     color: var(--text);
 }
 
+/* ===== Logs ===== */
 .logs {
     display: grid;
     gap: 10px;
@@ -316,10 +337,26 @@ th {
 }
 
 .log-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
     padding: 14px;
     border-radius: 16px;
     background: rgba(31, 41, 55, .65);
     border: 1px solid var(--border);
+}
+
+.log-checkbox {
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.log-body {
+    flex: 1;
+    min-width: 0;
 }
 
 .log-meta {
@@ -336,16 +373,7 @@ th {
     word-break: break-word;
 }
 
-.button-secondary {
-    background: rgba(148, 163, 184, 0.14);
-    color: #e5e7eb;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-}
-
-.button-secondary:hover {
-    background: rgba(148, 163, 184, 0.22);
-}
-
+/* ===== Modal ===== */
 .modal-backdrop {
     position: fixed;
     inset: 0;
@@ -374,9 +402,7 @@ th {
     box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
     transform: translateY(14px) scale(0.96);
     opacity: 0;
-    transition:
-        transform 180ms ease,
-        opacity 180ms ease;
+    transition: transform 180ms ease, opacity 180ms ease;
 }
 
 .modal-backdrop.is-open .modal-card {
@@ -403,7 +429,7 @@ th {
 
 .modal-card p {
     margin: 0;
-    color: #94a3b8;
+    color: var(--muted);
     line-height: 1.6;
 }
 
@@ -415,6 +441,7 @@ th {
     flex-wrap: wrap;
 }
 
+/* ===== Toast ===== */
 .toast-container {
     position: fixed;
     right: 20px;
@@ -429,15 +456,13 @@ th {
     max-width: 360px;
     padding: 14px 16px;
     border-radius: 16px;
-    color: #e5e7eb;
+    color: var(--text);
     background: rgba(15, 23, 42, 0.96);
     border: 1px solid rgba(148, 163, 184, 0.22);
     box-shadow: 0 16px 50px rgba(0, 0, 0, 0.32);
     transform: translateY(12px);
     opacity: 0;
-    transition:
-        transform 180ms ease,
-        opacity 180ms ease;
+    transition: transform 180ms ease, opacity 180ms ease;
     font-weight: 700;
 }
 
@@ -454,77 +479,15 @@ th {
     border-color: rgba(239, 68, 68, 0.35);
 }
 
+.toast.warning {
+    border-color: rgba(245, 158, 11, 0.35);
+}
+
 .toast.info {
     border-color: rgba(56, 189, 248, 0.35);
 }
 
-.number-control {
-    display: grid;
-    gap: 6px;
-    justify-items: end;
-}
-
-.number-control input {
-    width: 120px;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    border-radius: 14px;
-    background: rgba(15, 23, 42, 0.72);
-    color: #e5e7eb;
-    padding: 12px 14px;
-    font-weight: 800;
-    outline: none;
-}
-
-.number-control input:focus {
-    border-color: rgba(56, 189, 248, 0.7);
-    box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.12);
-}
-
-.number-control small {
-    color: #94a3b8;
-    font-size: 12px;
-}
-
-.qr-updated {
-    margin-top: 12px;
-    font-size: 13px;
-    text-align: center;
-}
-
-.status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 999px;
-    background: currentColor;
-    box-shadow: 0 0 12px currentColor;
-}
-
-.pill.success,
-.pill.good {
-    color: #22c55e;
-    background: rgba(34, 197, 94, 0.14);
-}
-
-.pill.info {
-    color: #38bdf8;
-    background: rgba(56, 189, 248, 0.14);
-}
-
-.pill.warning {
-    color: #f59e0b;
-    background: rgba(245, 158, 11, 0.14);
-}
-
-.pill.danger,
-.pill.bad {
-    color: #ef4444;
-    background: rgba(239, 68, 68, 0.14);
-}
-
-
-
-
-
+/* ===== Settings ===== */
 .settings-panel {
     padding: 40px 42px;
 }
@@ -568,11 +531,7 @@ th {
     border: 1px solid rgba(148, 163, 184, 0.14);
     background: rgba(255, 255, 255, 0.02);
     border-radius: 22px;
-    transition:
-        transform 180ms ease,
-        border-color 180ms ease,
-        background 180ms ease,
-        box-shadow 180ms ease;
+    transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
 }
 
 .setting-card:hover {
@@ -590,17 +549,15 @@ th {
     margin: 0 0 8px;
     font-size: 18px;
     font-weight: 800;
-    color: #e5e7eb;
+    color: var(--text);
 }
 
 .setting-copy p {
     margin: 0;
-    color: #94a3b8;
+    color: var(--muted);
     line-height: 1.6;
     font-size: 14px;
 }
-
-
 
 .switch {
     position: relative;
@@ -640,22 +597,20 @@ th {
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
 }
 
-.switch input:checked+.switch-slider {
+.switch input:checked + .switch-slider {
     background: linear-gradient(135deg, #38bdf8, #2563eb);
     border-color: rgba(96, 165, 250, 0.45);
     box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.08);
 }
 
-.switch input:checked+.switch-slider::before {
+.switch input:checked + .switch-slider::before {
     transform: translateX(28px);
 }
 
-.switch input:focus-visible+.switch-slider {
+.switch input:focus-visible + .switch-slider {
     outline: 2px solid rgba(96, 165, 250, 0.8);
     outline-offset: 2px;
 }
-
-
 
 .log-limit-box {
     min-width: 240px;
@@ -675,10 +630,7 @@ th {
     font-weight: 800;
     text-align: center;
     outline: none;
-    transition:
-        border-color 180ms ease,
-        box-shadow 180ms ease,
-        transform 180ms ease;
+    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 
 .log-limit-box input:focus {
@@ -688,11 +640,9 @@ th {
 }
 
 .log-limit-box small {
-    color: #94a3b8;
+    color: var(--muted);
     font-size: 13px;
 }
-
-
 
 .settings-footer {
     display: flex;
@@ -703,7 +653,7 @@ th {
 }
 
 .settings-footer-info {
-    color: #94a3b8;
+    color: var(--muted);
     font-size: 14px;
     line-height: 1.6;
 }
@@ -712,8 +662,7 @@ th {
     min-width: 200px;
 }
 
-
-
+/* ===== QR panel ===== */
 .qr-panel {
     align-items: stretch;
 }
@@ -852,7 +801,7 @@ th {
 }
 
 .qr-meta {
-    color: #94a3b8;
+    color: var(--muted);
     font-size: 12px;
 }
 
@@ -905,8 +854,13 @@ th {
 
 .qr-empty p {
     margin: 0;
-    color: #94a3b8;
+    color: var(--muted);
     line-height: 1.6;
+}
+
+.qr-generate-btn {
+    display: none;
+    margin-top: 15px;
 }
 
 .qr-status-detail {
@@ -926,18 +880,56 @@ th {
 }
 
 .qr-detail-row span {
-    color: #94a3b8;
+    color: var(--muted);
     font-size: 13px;
 }
 
 .qr-detail-row strong {
-    color: #e5e7eb;
+    color: var(--text);
     font-size: 14px;
     text-align: right;
 }
 
+/* ===== QR timer ===== */
+.qr-timer {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 16px auto 0;
+    padding: 10px 20px;
+    border-radius: 50px;
+    font-weight: 800;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    width: fit-content;
+}
 
+.timer-pulse {
+    color: var(--warn);
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    animation: pulseTimerNormal 1.5s infinite;
+}
 
+.timer-danger {
+    color: var(--bad);
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    animation: pulseTimerFast 0.5s infinite;
+}
+
+@keyframes pulseTimerNormal {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(0.98); }
+}
+
+@keyframes pulseTimerFast {
+    0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(239, 68, 68, 0); }
+    50% { opacity: 0.9; transform: scale(1.03); box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
+}
+
+/* ===== Device ===== */
 .device-panel {
     display: grid;
     gap: 22px;
@@ -1003,7 +995,7 @@ th {
 
 .device-info p {
     margin: 0;
-    color: #94a3b8;
+    color: var(--muted);
     line-height: 1.6;
 }
 
@@ -1024,35 +1016,31 @@ th {
 
 .device-meta span {
     display: block;
-    color: #94a3b8;
+    color: var(--muted);
     font-size: 12px;
     margin-bottom: 6px;
 }
 
 .device-meta strong {
     display: block;
-    color: #e5e7eb;
+    color: var(--text);
     font-size: 13px;
     word-break: break-all;
 }
 
-
-
-@media (max-width: 640px) {
-    .topbar-status {
-        justify-items: start;
-    }
-
-    .number-control {
-        justify-items: stretch;
-        width: 100%;
-    }
-
-    .number-control input {
-        width: 100%;
-    }
+.device-actions {
+    display: none;
+    margin-top: 24px;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
+/* ===== Responsive ===== */
+@media (max-width: 640px) {
+    .topbar-status {
+        align-items: flex-start;
+    }
+}
 
 @media (max-width: 900px) {
     .qr-card {
@@ -1126,96 +1114,4 @@ th {
     .device-meta {
         grid-template-columns: 1fr;
     }
-}
-
-
-
-
-/* --- TOPBAR STATUS UI --- */
-.topbar-status {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
-}
-
-.pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    border-radius: 50px;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    transition: all 0.3s ease;
-}
-
-/* Varian Warna Status */
-.status-online {
-    background: rgba(16, 185, 129, 0.15); /* Emerald tint */
-    color: #10b981;
-    border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-.status-offline {
-    background: rgba(239, 68, 68, 0.15); /* Red tint */
-    color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-.status-warning {
-    background: rgba(245, 158, 11, 0.15); /* Amber tint */
-    color: #f59e0b;
-    border: 1px solid rgba(245, 158, 11, 0.3);
-}
-
-.status-updated {
-    color: #94a3b8;
-    font-size: 11px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-
-/* --- ANIMASI TIMER QR CODE --- */
-#qrTimerContainer {
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin-top: 16px;
-    padding: 10px 20px;
-    border-radius: 50px;
-    font-weight: 800;
-    font-size: 14px;
-    transition: all 0.3s ease;
-    width: fit-content;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.timer-pulse {
-    color: #f59e0b; /* Kuning Warning */
-    background: rgba(245, 158, 11, 0.1);
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    animation: pulseTimerNormal 1.5s infinite;
-}
-
-.timer-danger {
-    color: #ef4444; /* Merah Danger */
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    animation: pulseTimerFast 0.5s infinite;
-}
-
-@keyframes pulseTimerNormal {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(0.98); }
-}
-
-@keyframes pulseTimerFast {
-    0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(239, 68, 68, 0); }
-    50% { opacity: 0.9; transform: scale(1.03); box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
 }

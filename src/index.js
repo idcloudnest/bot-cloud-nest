@@ -3,25 +3,29 @@ import { startWebServer } from './web/server.js';
 
 import fs from 'node:fs';
 import { setStatus } from './state/app-state.js';
+import { logger } from './utils/logger.js';
+
+const CREDS_PATH = './auth_info_baileys/creds.json';
+
+/** Cek apakah ada sesi WhatsApp sebelumnya (creds.json terisi). */
+function hasExistingSession() {
+    try {
+        if (!fs.existsSync(CREDS_PATH)) return false;
+        const creds = fs.readFileSync(CREDS_PATH, 'utf8');
+        return creds.length > 20 && creds !== '{}';
+    } catch {
+        return false;
+    }
+}
 
 async function main() {
     startWebServer();
 
-    // Cek apakah ada sesi WA sebelumnya (creds.json terisi)
-    let hasSession = false;
-    try {
-        const credsPath = './auth_info_baileys/creds.json';
-        if (fs.existsSync(credsPath)) {
-            const creds = fs.readFileSync(credsPath, 'utf8');
-            if (creds.length > 20 && creds !== '{}') hasSession = true;
-        }
-    } catch (e) {}
-
-    // Jika ada sesi lama, langsung jalankan bot
-    if (hasSession) {
+    if (hasExistingSession()) {
+        // Ada sesi lama, langsung jalankan bot.
         await startBot();
     } else {
-        // Jika kosong, ubah status ke IDLE (Menunggu instruksi)
+        // Sesi kosong, set status IDLE (menunggu instruksi user).
         setStatus({
             connection: 'idle',
             connected: false,
@@ -31,6 +35,6 @@ async function main() {
 }
 
 main().catch((error) => {
-    console.error('App failed to start:', error);
+    logger.error(error, 'App failed to start');
     process.exit(1);
 });

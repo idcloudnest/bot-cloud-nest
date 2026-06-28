@@ -17,6 +17,7 @@ import { clearSession, getAllSessions } from '../services/session.service.js';
 import { logoutWhatsApp, sendWhatsAppMessage, restartWhatsApp, startBot } from '../bot.js';
 import { normalizePhoneToJid } from '../utils/formatter.js';
 import { basicAuth } from './auth.js';
+import { logger } from '../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -132,7 +133,7 @@ export function startWebServer() {
         }
 
         socket.on('disconnect', () => {
-            console.log('Client disconnected:', socket.id);
+            logger.debug({ id: socket.id }, 'Client disconnected');
         });
     })
 
@@ -166,6 +167,6 @@ export function startWebServer() {
     // ===== LOGS SETTINGS =====
 
     server.listen(config.appPort, () => {
-        console.log(`✅ Console ready: http://localhost:${config.appPort}`)
+        logger.info(`✅ Console ready: http://localhost:${config.appPort}`);
     })
 }

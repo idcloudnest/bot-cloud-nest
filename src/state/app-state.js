@@ -165,6 +165,8 @@ export function getLogs() {
     return [...state.logs];
 }
 
+
+
 export function clearLogs() {
     const clearedCount = state.logs.length;
 
@@ -194,15 +196,4 @@ export function deleteMultipleLogs(ids) {
         return true;
     }
     return false;
-}
-
-export function setConnection(connection, extra = {}) {
-    state.connection = connection;
-    state.lastError = extra.lastError || null;
-
-    if (connection === 'open') {
-        state.qr = null;
-    }
-
-    emitter.emit('status', getState());
 }

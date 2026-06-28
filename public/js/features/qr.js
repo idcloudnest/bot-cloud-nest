@@ -6,6 +6,15 @@ import { showToast } from '../ui/toast.js';
 const GENERATE_QR_HTML = '<i class="fas fa-qrcode"></i> Generate QR Code';
 
 let qrTimerInterval = null;
+let lastEmptyKey = null;
+
+// Putar ulang animasi entrance pada elemen (restart CSS animation via reflow).
+function replayAnimation(el) {
+    if (!el) return;
+    el.style.animation = 'none';
+    void el.offsetWidth; // paksa reflow
+    el.style.animation = '';
+}
 
 // --- Timer countdown QR ---
 
@@ -34,8 +43,10 @@ function startQrTimer(expireAtMs) {
         if (remaining <= 0) {
             countText.textContent = '0';
             stopQrTimer();
-            // Fallback UI: backend juga akan kirim status idle, ini cuma jaga-jaga.
+            // Bersihkan QR + set idle agar QR image & timer hilang bersamaan,
+            // lalu kartu "QR Kadaluarsa" muncul. Backend juga akan kirim idle.
             store.setStatus({ connection: 'idle', connected: false, message: 'QR Code Kadaluarsa' });
+            store.setQr(null);
             renderQrState();
             return;
         }
@@ -102,6 +113,14 @@ export function renderQrState() {
         setText($('#qrStateTitle'), title);
         const desc = $('#qrStateDescription');
         if (desc) desc.innerHTML = description;
+
+        // Animasikan ulang hanya saat state benar-benar berubah (hindari spam).
+        if (lastEmptyKey !== title) {
+            lastEmptyKey = title;
+            replayAnimation(qrEmpty);
+            replayAnimation(iconEl);
+            replayAnimation($('#btnGenerateQr'));
+        }
     };
 
     setText($('#qrConnectionText'), status.message || status.connection || '-');
@@ -125,12 +144,13 @@ export function renderQrState() {
         return;
     }
 
-    // 2. QR READY
-    if (qrDataUrl) {
+    // 2. QR READY (abaikan QR yang expire-nya sudah lewat agar tidak "muncul lagi")
+    if (qrDataUrl && (!expireAt || expireAt > Date.now())) {
         qrImage.src = qrDataUrl;
         qrImage.style.display = 'block';
         qrEmpty.style.display = 'none';
         toggle(btnGenerate, false);
+        lastEmptyKey = null;
 
         if (expireAt && !qrTimerInterval) startQrTimer(expireAt);
 
@@ -204,12 +224,15 @@ export function initQr() {
     if (!btnGenerate) return;
 
     btnGenerate.addEventListener('click', async () => {
+        const id = store.getCurrent();
+        if (!id) return;
+
         showToast('Menyiapkan QR Code...', 'info');
         btnGenerate.disabled = true;
         btnGenerate.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
 
         try {
-            await api.generateQr();
+            await api.start(id);
         } catch (error) {
             showToast(error.message || 'Gagal membuat QR.', 'error');
             btnGenerate.disabled = false;

@@ -1,19 +1,37 @@
-// Penyimpan state terakhir di sisi client (status & qr).
-// QR render butuh tahu status terakhir, dan sebaliknya, jadi keduanya
-// dipusatkan di sini agar tidak ada variabel global yang tersebar.
+// State sisi client: akun yang sedang dipilih + status/qr akun tersebut.
+// Detail panel hanya menampilkan akun aktif; daftar akun di sidebar pakai
+// payload event 'sessions' langsung.
 
-let latestStatus = {};
-let latestQr = null;
+let currentSessionId = null;
+let status = {};
+let qr = null;
+let view = 'detail'; // 'detail' = panel akun terpilih, 'list' = tabel daftar akun
 
 export const store = {
-    getStatus: () => latestStatus,
-    setStatus(status = {}) {
-        latestStatus = status;
-        return latestStatus;
+    getCurrent: () => currentSessionId,
+    setCurrent(id) {
+        currentSessionId = id;
+        status = {};
+        qr = null;
+        return id;
     },
-    getQr: () => latestQr,
-    setQr(qr = null) {
-        latestQr = qr;
-        return latestQr;
+    isCurrent: (id) => id != null && id === currentSessionId,
+
+    getView: () => view,
+    setView(value) {
+        view = value;
+        return view;
+    },
+
+    getStatus: () => status,
+    setStatus(value = {}) {
+        status = value;
+        return status;
+    },
+
+    getQr: () => qr,
+    setQr(value = null) {
+        qr = value;
+        return qr;
     },
 };

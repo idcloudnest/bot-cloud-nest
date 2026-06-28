@@ -1,4 +1,5 @@
 import { $, $$, escapeHtml, formatDate, setText } from '../core/dom.js';
+import { store } from '../core/store.js';
 import { api } from '../core/api.js';
 import { showToast } from '../ui/toast.js';
 import { showConfirmModal } from '../ui/modal.js';
@@ -100,6 +101,9 @@ export function initLogs() {
     });
 
     $('#clearLogsButton')?.addEventListener('click', async () => {
+        const id = store.getCurrent();
+        if (!id) return;
+
         const confirmed = await showConfirmModal({
             title: 'Clear message logs?',
             message: 'Semua log yang tampil di dashboard akan dibersihkan. Chat WhatsApp asli tidak akan terhapus.',
@@ -110,7 +114,7 @@ export function initLogs() {
 
         showToast('Membersihkan logs...', 'info');
         try {
-            const result = await api.clearLogs();
+            const result = await api.clearLogs(id);
             renderLogs([]);
             showToast(`${result?.clearedCount || 0} log berhasil dibersihkan.`, 'success');
         } catch (error) {
@@ -119,6 +123,9 @@ export function initLogs() {
     });
 
     $('#btnDeleteSelected')?.addEventListener('click', async () => {
+        const id = store.getCurrent();
+        if (!id) return;
+
         const ids = $$('.log-checkbox:checked').map((cb) => cb.value);
         if (!ids.length) return;
 
@@ -130,8 +137,8 @@ export function initLogs() {
         if (!confirmed) return;
 
         try {
-            await api.bulkDeleteLogs(ids);
-            // Penghapusan dari DOM ditangani oleh event socket 'logs:deleted_multiple'.
+            await api.bulkDeleteLogs(id, ids);
+            // Penghapusan dari DOM ditangani oleh event socket 'session:logs:deleted'.
         } catch (error) {
             showToast(error.message || 'Gagal menghapus log.', 'error');
         }

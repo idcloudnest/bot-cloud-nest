@@ -1,4 +1,5 @@
 import { $, setText } from '../core/dom.js';
+import { store } from '../core/store.js';
 import { api } from '../core/api.js';
 import { showToast } from '../ui/toast.js';
 
@@ -44,6 +45,9 @@ export function initSettings() {
     $('#settingsForm')?.addEventListener('submit', async (event) => {
         event.preventDefault();
 
+        const id = store.getCurrent();
+        if (!id) return;
+
         const logLimit = Number($('#logLimitInput')?.value || 100);
         if (logLimit < MIN_LIMIT || logLimit > MAX_LIMIT) {
             showToast(`Log limit harus antara ${MIN_LIMIT} sampai ${MAX_LIMIT}.`, 'error');
@@ -51,7 +55,7 @@ export function initSettings() {
         }
 
         try {
-            const result = await api.updateSettings({
+            const result = await api.updateSettings(id, {
                 ignoreGroups: $('#ignoreGroupsInput').checked,
                 ignorePrivates: $('#ignorePrivatesInput').checked,
                 logLimit,

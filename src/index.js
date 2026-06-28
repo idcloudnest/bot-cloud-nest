@@ -1,37 +1,17 @@
-import { startBot } from './bot.js';
 import { startWebServer } from './web/server.js';
-
-import fs from 'node:fs';
-import { setStatus } from './state/app-state.js';
+import { migrate } from './db/migrate.js';
+import { resumeSessions } from './whatsapp/session-manager.js';
 import { logger } from './utils/logger.js';
 
-const CREDS_PATH = './auth_info_baileys/creds.json';
-
-/** Cek apakah ada sesi WhatsApp sebelumnya (creds.json terisi). */
-function hasExistingSession() {
-    try {
-        if (!fs.existsSync(CREDS_PATH)) return false;
-        const creds = fs.readFileSync(CREDS_PATH, 'utf8');
-        return creds.length > 20 && creds !== '{}';
-    } catch {
-        return false;
-    }
-}
-
 async function main() {
+    // 1. Siapkan database (buat tabel bila belum ada).
+    await migrate();
+
+    // 2. Jalankan web server + dashboard.
     startWebServer();
 
-    if (hasExistingSession()) {
-        // Ada sesi lama, langsung jalankan bot.
-        await startBot();
-    } else {
-        // Sesi kosong, set status IDLE (menunggu instruksi user).
-        setStatus({
-            connection: 'idle',
-            connected: false,
-            message: 'Bot standby. Silakan klik Generate QR.',
-        });
-    }
+    // 3. Resume akun yang sudah punya sesi WhatsApp tersimpan.
+    await resumeSessions();
 }
 
 main().catch((error) => {

@@ -1,4 +1,5 @@
 import { $, formatDate, setText, toggle } from '../core/dom.js';
+import { store } from '../core/store.js';
 import { api } from '../core/api.js';
 import { showToast } from '../ui/toast.js';
 import { showConfirmModal } from '../ui/modal.js';
@@ -38,6 +39,9 @@ export function renderDevice(status = {}) {
 
 export function initDevice() {
     $('#btnRestartDevice')?.addEventListener('click', async () => {
+        const id = store.getCurrent();
+        if (!id) return;
+
         const confirmed = await showConfirmModal({
             title: 'Restart Bot?',
             message: 'Bot akan diputus sementara dan mencoba terhubung kembali. Sesi WA tidak akan dihapus (tidak perlu scan QR ulang).',
@@ -47,7 +51,7 @@ export function initDevice() {
 
         showToast('Merestart bot...', 'info');
         try {
-            await api.restart();
+            await api.restart(id);
             showToast('Perintah restart berhasil dikirim.', 'success');
         } catch (error) {
             showToast(error.message || 'Gagal merestart bot.', 'error');
@@ -55,6 +59,9 @@ export function initDevice() {
     });
 
     $('#btnDisconnectDevice')?.addEventListener('click', async () => {
+        const id = store.getCurrent();
+        if (!id) return;
+
         const confirmed = await showConfirmModal({
             title: 'Disconnect (Logout)?',
             message: 'Akses ke akun WhatsApp ini akan dicabut sepenuhnya. Anda harus scan QR lagi untuk menghubungkan bot.',
@@ -64,7 +71,7 @@ export function initDevice() {
 
         showToast('Melogout device...', 'warning');
         try {
-            await api.logout();
+            await api.logout(id);
             showToast('Berhasil logout dari device.', 'success');
         } catch (error) {
             showToast(error.message || 'Gagal logout device.', 'error');

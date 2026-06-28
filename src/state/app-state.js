@@ -1,199 +1,105 @@
-import { EventEmitter } from 'node:events';
-import { readJson, writeJson } from '../utils/storage.js';
-import { getAllSessions } from '../services/session.service.js';
+import { bus, EVENTS } from './events.js';
+import { config } from '../config.js';
+import * as sessionRepo from '../db/repositories/session.repo.js';
+import * as logRepo from '../db/repositories/log.repo.js';
+import * as conversationRepo from '../db/repositories/conversation.repo.js';
 
-const emitter = new EventEmitter();
+// State ephemeral per akun (tidak perlu persist): QR aktif + cache log limit.
+const runtime = new Map();
 
-const MIN_LOG_LIMIT = 10;
-const MAX_LOG_LIMIT = 1000;
-const DEFAULT_LOG_LIMIT = 100;
-
-function normalizeLogLimit(value, fallback = 100) {
-    const numberValue = Number(value);
-
-    if (!Number.isFinite(numberValue)) return fallback;
-
-    return Math.min(
-        MAX_LOG_LIMIT,
-        Math.max(MIN_LOG_LIMIT, Math.trunc(numberValue))
-    );
-}
-
-const persistedState = readJson('app-state.json', {
-    logs: [],
-    settings: {},
-});
-function persistState() {
-    writeJson('app-state.json', {
-        logs: state.logs,
-        settings: state.settings,
-    });
-}
-
-const startedAt = new Date().toISOString();
-
-const state = {
-    status: {
-        connection: 'starting',
-        connected: false,
-        message: 'Starting bot...',
-        startedAt,
-        updatedAt: startedAt,
-        lastError: null,
-        device: null,
-    },
-    qr: null,
-    logs: persistedState.logs || [],
-    settings: {
-        ignoreGroups:
-            persistedState.settings?.ignoreGroups ??
-            process.env.IGNORE_GROUPS === 'true',
-
-        ignorePrivates:
-            persistedState.settings?.ignorePrivates ??
-            process.env.IGNORE_PRIVATES === 'true',
-
-        logLimit: normalizeLogLimit(
-            persistedState.settings?.logLimit ||
-            process.env.LOG_LIMIT ||
-            DEFAULT_LOG_LIMIT
-        ),
-    },
-};
-
-function trimLogs() {
-    state.logs = state.logs.slice(0, state.settings.logLimit);
-}
-
-export function onState(event, listener) {
-    emitter.on(event, listener);
-}
-
-export function getState() {
-    return {
-        status: { ...state.status },
-        qr: state.qr,
-        logs: getLogs(),
-        settings: getSettings(),
-    };
-}
-
-export function getSettings() {
-    return { ...state.settings };
-}
-
-export function updateSettings(payload = {}) {
-    const previousLogLimit = state.settings.logLimit;
-
-    if (typeof payload.ignoreGroups === 'boolean') {
-        state.settings.ignoreGroups = payload.ignoreGroups;
+function rt(sessionId) {
+    if (!runtime.has(sessionId)) {
+        runtime.set(sessionId, { qr: null, logLimit: config.logLimit });
     }
-
-    if (typeof payload.ignorePrivates === 'boolean') {
-        state.settings.ignorePrivates = payload.ignorePrivates;
-    }
-
-    if (payload.logLimit !== undefined) {
-        state.settings.logLimit = normalizeLogLimit(
-            payload.logLimit,
-            state.settings.logLimit
-        );
-    }
-
-    trimLogs();
-    persistState();
-
-    emitter.emit('settings', getSettings());
-
-    if (previousLogLimit !== state.settings.logLimit) {
-        emitter.emit('logs:init', getLogs());
-    }
-
-    return getSettings();
+    return runtime.get(sessionId);
 }
 
-export function setStatus(payload = {}) {
-    state.status = {
-        ...state.status,
-        ...payload,
-        updatedAt: new Date().toISOString(),
-    };
-
-    emitter.emit('status', state.status);
-    emitter.emit('state', getState());
-
-    return state.status;
+export function dropRuntime(sessionId) {
+    runtime.delete(sessionId);
 }
 
-export function setQr(qr) {
-    const updatedAt = new Date().toISOString()
-    state.qr = qr;
-    state.updatedAt = updatedAt;
-
-    emitter.emit('qr', {
-        qr,
-        updatedAt,
-        timeoutMs: qr?.timeoutMs,
-        expireAt: qr?.expireAt || null
-    });
-
-    return state.qr;
+export function setLogLimit(sessionId, limit) {
+    rt(sessionId).logLimit = Number(limit) || config.logLimit;
 }
 
-export function notifySessionsUpdate() {
-    emitter.emit('sessions:update', getAllSessions());
+// --- Daftar akun ---
+
+export async function emitSessionsList() {
+    const sessions = await sessionRepo.list();
+    // Sisipkan QR aktif (in-memory) ke tiap akun.
+    const withQr = sessions.map((s) => ({ ...s, qr: rt(s.id).qr }));
+    bus.emit(EVENTS.SESSIONS, withQr);
+    return withQr;
 }
 
-export function addLog(type, payload) {
-    const item = {
-        id: crypto.randomUUID(),
-        type,
-        payload,
-        timestamp: new Date().toISOString(),
-    };
+// --- Status ---
 
-    state.logs.unshift(item);
-    trimLogs();
-    persistState();
+export async function setStatus(sessionId, patch = {}) {
+    await sessionRepo.updateStatus(sessionId, patch);
+    const session = await sessionRepo.get(sessionId);
+    if (!session) return null;
 
-    emitter.emit('log', item);
-
-    return item;
+    bus.emit(EVENTS.STATUS, { sessionId, status: session.status });
+    await emitSessionsList();
+    return session.status;
 }
 
-export function getLogs() {
-    return [...state.logs];
+// --- QR (in-memory) ---
+
+export function setQr(sessionId, qr) {
+    rt(sessionId).qr = qr;
+    bus.emit(EVENTS.QR, { sessionId, qr });
+    return qr;
 }
 
-
-
-export function clearLogs() {
-    const clearedCount = state.logs.length;
-
-    state.logs = [];
-    persistState();
-
-    const payload = {
-        ok: true,
-        clearedCount,
-        timestamp: new Date().toISOString(),
-    };
-
-    emitter.emit('logs:clear', payload);
-
-    return payload;
+export function getQr(sessionId) {
+    return rt(sessionId).qr;
 }
 
-export function deleteMultipleLogs(ids) {
-    const initialLength = state.logs.length;
+// --- Settings (per akun, kolom di tabel sessions) ---
 
-    // Buang log yang ID-nya ada di dalam array 'ids'
-    state.logs = state.logs.filter((log) => !ids.includes(log.id));
+export async function updateSettings(sessionId, payload = {}) {
+    const session = await sessionRepo.updateSettings(sessionId, payload);
+    if (!session) return null;
 
-    if (state.logs.length !== initialLength) {
-        persistState();
-        emitter.emit('logs:deleted_multiple', { ids }); // Beritahu frontend
-        return true;
-    }
-    return false;
+    rt(sessionId).logLimit = session.settings.logLimit;
+    await logRepo.trim(sessionId, session.settings.logLimit);
+
+    bus.emit(EVENTS.SETTINGS, { sessionId, settings: session.settings });
+    bus.emit(EVENTS.LOGS_INIT, { sessionId, logs: await logRepo.list(sessionId, session.settings.logLimit) });
+    return session.settings;
+}
+
+// --- Logs ---
+
+export async function addLog(sessionId, type, payload = {}, jid = null) {
+    const limit = rt(sessionId).logLimit;
+    const log = await logRepo.add(sessionId, type, payload, jid);
+    await logRepo.trim(sessionId, limit);
+    bus.emit(EVENTS.LOG, { sessionId, log });
+    return log;
+}
+
+export async function getLogs(sessionId, limit) {
+    return logRepo.list(sessionId, limit ?? rt(sessionId).logLimit);
+}
+
+export async function clearLogs(sessionId) {
+    const clearedCount = await logRepo.clear(sessionId);
+    bus.emit(EVENTS.LOGS_CLEAR, { sessionId, clearedCount });
+    return clearedCount;
+}
+
+export async function deleteLogs(sessionId, ids = []) {
+    const deleted = await logRepo.bulkDelete(sessionId, ids);
+    if (deleted > 0) bus.emit(EVENTS.LOGS_DELETED, { sessionId, ids });
+    return deleted;
+}
+
+// --- Conversations ---
+
+export async function notifyConversations(sessionId) {
+    const conversations = await conversationRepo.listBySession(sessionId);
+    bus.emit(EVENTS.CONVERSATIONS, { sessionId, conversations });
+    return conversations;
 }

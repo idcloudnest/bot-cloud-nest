@@ -123,9 +123,10 @@ async function showBrands(sessionId, jid) {
 async function handleBrandChoice(sessionId, jid, input) {
     const brands = await getBrands();
     const idx = parseChoice(input, brands.length);
-    if (idx === -1) {
-        return `Nomor brand tidak valid kak 🙏\n\n${brandListMessage(brands)}`;
-    }
+    if (idx === -1) return ''; // invalid input -> stay silent
+    // if (idx === -1) {
+    //     return `Nomor brand tidak valid kak 🙏\n\n${brandListMessage(brands)}`;
+    // }
 
     const brand = brands[idx];
     const groups = await getBrandGroups(brand.id);
@@ -158,9 +159,10 @@ async function handleGroupChoice(sessionId, jid, input, data) {
 
     const groups = await getBrandGroups(data.brandId);
     const idx = parseChoice(input, groups.length);
-    if (idx === -1) {
-        return `Nomor jenis produk tidak valid kak 🙏\n\n${groupListMessage(data.brandName, groups)}`;
-    }
+    if (idx === -1) return ''; // invalid input -> stay silent
+    // if (idx === -1) {
+    //     return `Nomor jenis produk tidak valid kak 🙏\n\n${groupListMessage(data.brandName, groups)}`;
+    // }
 
     const group = groups[idx];
     await conversationRepo.upsert(sessionId, jid, STEP.PRODUCT, {
@@ -188,9 +190,10 @@ async function handleProductChoice(sessionId, jid, input, data) {
     const groups = await getBrandGroups(data.brandId);
     const group = groups[data.groupIndex] || { name: data.groupName, products: [] };
     const idx = parseChoice(input, group.products.length);
-    if (idx === -1) {
-        return `Nomor produk tidak valid kak 🙏\n\n${productListMessage(data.brandName, group.name, group.products)}`;
-    }
+    if (idx === -1) return ''; // invalid input -> stay silent
+    // if (idx === -1) {
+    //     return `Nomor produk tidak valid kak 🙏\n\n${productListMessage(data.brandName, group.name, group.products)}`;
+    // }
 
     // Stay on the product step so the user can view another item or go back.
     return productDetailMessage(data.brandName, group.name, group.products[idx]);

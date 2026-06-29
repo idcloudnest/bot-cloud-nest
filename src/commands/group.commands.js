@@ -2,7 +2,7 @@ import { config } from '../config.js';
 import * as groupRepo from '../db/repositories/group.repo.js';
 import { addLog } from '../state/app-state.js';
 import { logger } from '../utils/logger.js';
-import { mentionTag, resolvePhoneJid } from './wa-helpers.js';
+import { mentionTag, resolvePhoneJid, getGroupContext } from './wa-helpers.js';
 
 // Group moderation commands. Each command runs only when the bot's `group`
 // feature is enabled (gated by the dispatcher) and inside a group chat.
@@ -256,28 +256,50 @@ export const groupCommands = [kick, promote, demote, warn, unwarn, warns, blackl
  * (re)join. Called by the session manager for every 'group-participants.update'.
  */
 export async function handleParticipantsUpdate(sessionId, sock, update, { groupEnabled }) {
+    logger.info({ sessionId, action: update?.action, id: update?.id, participants: update?.participants, groupEnabled },
+        'group-participants.update received');
+
     if (!groupEnabled) return;
     if (update.action !== 'add') return;
 
     const groupJid = update.id;
     const joined = update.participants || [];
+    if (!joined.length) return;
+
+    let group;
+    let listed;
+    try {
+        group = await getGroupContext(sock, groupJid);
+        listed = await groupRepo.listBlacklist(sessionId, groupJid);
+    } catch (error) {
+        logger.error(error, 'rejoin check: failed to load group/blacklist');
+        return;
+    }
+
+    // Compare by canonical phone number so lid/jid differences don't matter.
+    const blockedNumbers = new Map(listed.map((b) => [canonicalNumber(b.userJid), b]));
 
     for (const userJid of joined) {
         try {
-            // Joined ids may be @lid; blacklist is keyed by phone jid.
-            const phone = await resolvePhoneJid(sock, groupJid, userJid);
-            const blocked = await groupRepo.isBlacklisted(sessionId, groupJid, phone)
-                || (phone !== userJid && await groupRepo.isBlacklisted(sessionId, groupJid, userJid));
-            if (blocked) {
-                await sock.groupParticipantsUpdate(groupJid, [userJid], 'remove');
-                await safeLog(sessionId, 'system', { text: `Auto-kicked blacklisted ${phone} on rejoin in ${groupJid}` }, groupJid);
-                await sock.sendMessage(groupJid, {
-                    text: `🚫 ${mentionTag(userJid)} ada di daftar blokir grup ini dan otomatis dikeluarkan.`,
-                    mentions: [userJid],
-                });
-            }
-        } catch {
-            // Bot may not be admin or the user already left — ignore.
+            const phone = group.resolvePhone(userJid) || await resolvePhoneJid(sock, groupJid, userJid);
+            const candidates = [userJid, phone].filter(Boolean);
+            const numbers = candidates.map(canonicalNumber);
+            const matched = numbers.some((n) => blockedNumbers.has(n));
+
+            logger.info({ userJid, phone, numbers, blocked: [...blockedNumbers.keys()], matched },
+                'rejoin blacklist check');
+
+            if (!matched) continue;
+
+            const actionId = group.resolveActionId(userJid) || userJid;
+            await sock.groupParticipantsUpdate(groupJid, [actionId], 'remove');
+            await safeLog(sessionId, 'system', { text: `Auto-kicked blacklisted ${phone} on rejoin in ${groupJid}` }, groupJid);
+            await sock.sendMessage(groupJid, {
+                text: `🚫 ${mentionTag(phone)} ada di daftar blokir grup ini dan otomatis dikeluarkan.`,
+                mentions: [userJid],
+            });
+        } catch (error) {
+            logger.error({ err: error, userJid }, 'rejoin auto-kick failed');
         }
     }
 }

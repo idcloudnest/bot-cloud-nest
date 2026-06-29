@@ -65,13 +65,12 @@ export async function runCommand({ sessionId, sock, msg, jid, isGroup, features 
         group: null,
     };
 
-    console.log(ctx);
-
-
     // Resolve group context + admin checks when needed.
     if (isGroup && (command.adminOnly || command.botAdmin)) {
         try {
             ctx.group = await getGroupContext(sock, jid);
+            console.log(ctx.group);
+
         } catch (error) {
             logger.error(error, 'failed to load group metadata');
             return 'Gagal membaca data grup. Coba lagi sebentar lagi ya.';

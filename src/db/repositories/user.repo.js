@@ -11,6 +11,7 @@ export function toUserDTO(row) {
         avatar: row.avatar || null,
         role: row.role,
         hasPassword: Boolean(row.password_hash),
+        hasGoogle: Boolean(row.google_id),
         createdAt: row.created_at,
     };
 }
@@ -28,6 +29,12 @@ export async function findRawByEmail(email) {
 export async function getById(id) {
     const rows = await query('SELECT * FROM users WHERE id = ? LIMIT 1', [id]);
     return toUserDTO(rows[0]);
+}
+
+/** Internal: full row by id (incl. password_hash + google_id) for profile checks. */
+export async function getRawById(id) {
+    const rows = await query('SELECT * FROM users WHERE id = ? LIMIT 1', [id]);
+    return rows[0] || null;
 }
 
 export async function findByEmail(email) {
@@ -52,6 +59,30 @@ export async function create({ email, name, passwordHash = null, googleId = null
 /** Link a Google account id (and avatar) to an existing user. */
 export async function linkGoogle(id, googleId, avatar = null) {
     await query('UPDATE users SET google_id = ?, avatar = COALESCE(?, avatar) WHERE id = ?', [googleId, avatar, id]);
+    return getById(id);
+}
+
+/** Remove the Google link from a user (keeps the avatar). */
+export async function unlinkGoogle(id) {
+    await query('UPDATE users SET google_id = NULL WHERE id = ?', [id]);
+    return getById(id);
+}
+
+/** Update display name and/or email. Pass only the fields to change. */
+export async function updateProfile(id, { name, email } = {}) {
+    const fields = [];
+    const values = [];
+    if (name !== undefined) { fields.push('name = ?'); values.push(name); }
+    if (email !== undefined) { fields.push('email = ?'); values.push(String(email).toLowerCase()); }
+    if (!fields.length) return getById(id);
+    values.push(id);
+    await query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, values);
+    return getById(id);
+}
+
+/** Set or replace the password hash. */
+export async function setPassword(id, passwordHash) {
+    await query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, id]);
     return getById(id);
 }
 

@@ -35,6 +35,7 @@ export function showAccountsListView() {
     toggle($('#emptyState'), false, 'grid');
     toggle($('#accountView'), false, 'grid');
     toggle($('#dashboardView'), false, 'grid');
+    toggle($('#profileView'), false, 'grid');
     toggle($('#accountsListView'), true, 'grid');
 
     // Hide per-account status & menu (not relevant in the list).

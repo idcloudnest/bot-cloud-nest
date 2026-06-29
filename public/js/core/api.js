@@ -69,4 +69,12 @@ export const api = {
 
     // Conversations
     resetConversation: (id, jid) => request(`${base(id)}/conversations/${encodeURIComponent(jid)}`, { method: 'DELETE' }),
+
+    // Profile / account
+    me: () => request('/auth/me'),
+    authConfig: () => request('/auth/config'),
+    updateProfile: (payload) => request('/auth/profile', { method: 'PATCH', body: payload }),
+    changePassword: (payload) => request('/auth/password', { method: 'POST', body: payload }),
+    linkGoogle: (credential) => request('/auth/google/link', { method: 'POST', body: { credential } }),
+    unlinkGoogle: () => request('/auth/google/unlink', { method: 'POST' }),
 };

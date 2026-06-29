@@ -70,6 +70,7 @@ export function ensureDetailView() {
 function showAccountView(visible) {
     toggle($('#dashboardView'), false, 'grid');
     toggle($('#accountsListView'), false, 'grid');
+    toggle($('#profileView'), false, 'grid');
     toggle($('#accountView'), visible, 'grid');
     toggle($('#emptyState'), !visible, 'grid');
 

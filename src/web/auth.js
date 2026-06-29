@@ -136,6 +136,88 @@ async function loginWithGoogle(credential) {
     return userRepo.create({ email, name, googleId, avatar, role: 'user' });
 }
 
+// --- Profile service (authenticated) ---
+
+/** Verify a Google credential and return its payload (no DB side effects). */
+async function verifyGoogleCredential(credential) {
+    if (!googleClient) throw new Error('Google Sign-In is not configured.');
+    if (!credential) throw new Error('Missing Google credential.');
+    const ticket = await googleClient.verifyIdToken({ idToken: credential, audience: googleClientId });
+    const payload = ticket.getPayload();
+    if (!payload?.email || !payload.email_verified) {
+        throw new Error('Google account email could not be verified.');
+    }
+    return payload;
+}
+
+/** Update the current user's name and/or email. */
+async function updateProfile(userId, { name, email }) {
+    const patch = {};
+
+    if (name !== undefined) {
+        const cleanName = String(name).trim();
+        if (!cleanName) throw new Error('Name cannot be empty.');
+        patch.name = cleanName;
+    }
+
+    if (email !== undefined) {
+        const cleanEmail = String(email).trim().toLowerCase();
+        if (!EMAIL_RE.test(cleanEmail)) throw new Error('A valid email is required.');
+        const owner = await userRepo.findRawByEmail(cleanEmail);
+        if (owner && owner.id !== userId) throw new Error('That email is already in use.');
+        patch.email = cleanEmail;
+    }
+
+    if (!Object.keys(patch).length) throw new Error('Nothing to update.');
+    return userRepo.updateProfile(userId, patch);
+}
+
+/**
+ * Set or change the current user's password.
+ * - If the user already has a password, currentPassword is required and verified.
+ * - If not (e.g. Google-only account), it sets the password without a current one.
+ */
+async function changePassword(userId, { currentPassword, newPassword }) {
+    if (!newPassword || String(newPassword).length < 6) {
+        throw new Error('New password must be at least 6 characters.');
+    }
+
+    const row = await userRepo.getRawById(userId);
+    if (!row) throw new Error('User not found.');
+
+    if (row.password_hash) {
+        const ok = await bcrypt.compare(String(currentPassword || ''), row.password_hash);
+        if (!ok) throw new Error('Current password is incorrect.');
+    }
+
+    const passwordHash = await bcrypt.hash(String(newPassword), 10);
+    return userRepo.setPassword(userId, passwordHash);
+}
+
+/** Link a Google account to the current user. */
+async function linkGoogleAccount(userId, credential) {
+    const payload = await verifyGoogleCredential(credential);
+    const googleId = payload.sub;
+
+    const owner = await userRepo.findByGoogleId(googleId);
+    if (owner && owner.id !== userId) {
+        throw new Error('This Google account is already linked to another user.');
+    }
+
+    return userRepo.linkGoogle(userId, googleId, payload.picture || null);
+}
+
+/** Unlink Google. Requires a password to remain so the user keeps a way in. */
+async function unlinkGoogleAccount(userId) {
+    const row = await userRepo.getRawById(userId);
+    if (!row) throw new Error('User not found.');
+    if (!row.google_id) throw new Error('No Google account is linked.');
+    if (!row.password_hash) {
+        throw new Error('Set a password first so you can still sign in after unlinking Google.');
+    }
+    return userRepo.unlinkGoogle(userId);
+}
+
 // --- Routes ---
 
 export function registerAuthRoutes(app) {
@@ -183,6 +265,28 @@ export function registerAuthRoutes(app) {
         clearAuthCookie(res);
         res.json({ ok: true });
     });
+
+    // ===== Profile (authenticated) =====
+
+    app.patch('/auth/profile', requireAuth, handler(async (req, res) => {
+        const user = await updateProfile(req.user.id, req.body || {});
+        res.json({ user });
+    }));
+
+    app.post('/auth/password', requireAuth, handler(async (req, res) => {
+        const user = await changePassword(req.user.id, req.body || {});
+        res.json({ user });
+    }));
+
+    app.post('/auth/google/link', requireAuth, handler(async (req, res) => {
+        const user = await linkGoogleAccount(req.user.id, req.body?.credential);
+        res.json({ user });
+    }));
+
+    app.post('/auth/google/unlink', requireAuth, handler(async (req, res) => {
+        const user = await unlinkGoogleAccount(req.user.id);
+        res.json({ user });
+    }));
 }
 
 // --- Seed superadmin on startup ---

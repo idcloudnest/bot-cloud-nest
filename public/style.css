@@ -2125,3 +2125,134 @@ th {
     font-style: italic;
     color: var(--muted);
 }
+
+/* ===== Account profile view ===== */
+.profile-view {
+    display: none; /* toggled to grid by the router */
+    gap: 20px;
+}
+
+.profile-head {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 22px 24px;
+    background: var(--surface, #fff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 20px;
+    box-shadow: var(--shadow-sm);
+}
+
+.profile-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--accent, #2563eb) center/cover no-repeat;
+}
+
+.profile-headinfo h2 {
+    margin: 2px 0;
+    font-size: 20px;
+}
+
+.profile-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.profile-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    align-items: start;
+}
+
+.profile-card-wide {
+    grid-column: 1 / -1;
+}
+
+.profile-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.profile-submit {
+    width: auto;
+}
+
+/* Google connection */
+.profile-google {
+    display: grid;
+    gap: 12px;
+}
+
+.profile-google-linked {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 14px;
+    background: var(--surface-2, #f1f5f9);
+}
+
+.profile-google-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    background: #fff;
+    border: 1px solid var(--border, #e2e8f0);
+    color: #ea4335;
+    font-size: 18px;
+}
+
+.profile-google-text {
+    display: grid;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.profile-google-text small {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.profile-google-unlinked {
+    display: grid;
+    gap: 10px;
+    justify-items: start;
+}
+
+/* Inline form feedback states */
+.feedback-error {
+    color: #b91c1c;
+}
+
+.feedback-ok {
+    color: #15803d;
+}
+
+@media (max-width: 900px) {
+    .profile-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Sidebar user chip is clickable (opens profile) */
+.sidebar-user {
+    cursor: pointer;
+}
+.sidebar-user:hover {
+    border-color: var(--border-strong, #d3dbe8);
+}

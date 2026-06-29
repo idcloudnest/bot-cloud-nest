@@ -30,6 +30,9 @@
                 <a href="#accounts" id="navAccountsList" class="nav-primary">
                     <i class="fas fa-table-list"></i> Account List
                 </a>
+                <a href="#profile" id="navProfile" class="nav-primary">
+                    <i class="fas fa-user-gear"></i> Account Profile
+                </a>
 
                 <div id="accountMenu" class="nav-group" style="display:none">
                     <div class="nav-account">
@@ -263,6 +266,112 @@
                         </div>
                     </div>
                 </section>
+            </div>
+
+            <div id="profileView" class="profile-view">
+                <div class="profile-head">
+                    <div class="profile-avatar" id="profileAvatar"></div>
+                    <div class="profile-headinfo">
+                        <p class="eyebrow">Account</p>
+                        <h2 id="profileDisplayName">-</h2>
+                        <p class="muted" id="profileDisplayEmail">-</p>
+                        <div class="profile-badges">
+                            <span class="pill pill-info" id="profileRoleBadge">user</span>
+                            <span class="pill" id="profilePasswordBadge"></span>
+                            <span class="pill" id="profileGoogleBadge"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="profile-grid">
+                    <!-- Profile details -->
+                    <section class="panel profile-card">
+                        <div class="section-head">
+                            <div>
+                                <p class="eyebrow">Identity</p>
+                                <h2>Profile Details</h2>
+                                <p class="muted">Update your display name and login email.</p>
+                            </div>
+                        </div>
+                        <form id="profileForm" class="form-grid">
+                            <label>
+                                Name
+                                <input id="profileName" type="text" maxlength="100" placeholder="Your name" required />
+                            </label>
+                            <label>
+                                Email
+                                <input id="profileEmail" type="email" autocomplete="email" placeholder="you@example.com" required />
+                            </label>
+                            <div class="profile-actions">
+                                <button type="submit" class="profile-submit">Save Changes</button>
+                            </div>
+                            <p id="profileFeedback" class="feedback"></p>
+                        </form>
+                    </section>
+
+                    <!-- Password -->
+                    <section class="panel profile-card">
+                        <div class="section-head">
+                            <div>
+                                <p class="eyebrow">Security</p>
+                                <h2 id="passwordCardTitle">Password</h2>
+                                <p class="muted" id="passwordCardHint">Change your password.</p>
+                            </div>
+                        </div>
+                        <form id="passwordForm" class="form-grid">
+                            <label id="currentPasswordField">
+                                Current Password
+                                <input id="currentPassword" type="password" autocomplete="current-password" placeholder="••••••••" />
+                            </label>
+                            <label>
+                                New Password
+                                <input id="newPassword" type="password" autocomplete="new-password" placeholder="At least 6 characters" required />
+                            </label>
+                            <label>
+                                Confirm New Password
+                                <input id="confirmPassword" type="password" autocomplete="new-password" placeholder="Repeat new password" required />
+                            </label>
+                            <div class="profile-actions">
+                                <button type="submit" class="profile-submit" id="passwordSubmit">Change Password</button>
+                            </div>
+                            <p id="passwordFeedback" class="feedback"></p>
+                        </form>
+                    </section>
+
+                    <!-- Google connection -->
+                    <section class="panel profile-card profile-card-wide">
+                        <div class="section-head">
+                            <div>
+                                <p class="eyebrow">Connections</p>
+                                <h2>Google Account</h2>
+                                <p class="muted">Link your Google account to sign in with one click.</p>
+                            </div>
+                            <span class="pill" id="googleStateBadge">-</span>
+                        </div>
+
+                        <div class="profile-google">
+                            <div class="profile-google-linked" id="googleLinkedBox" hidden>
+                                <div class="profile-google-icon"><i class="fab fa-google"></i></div>
+                                <div class="profile-google-text">
+                                    <strong>Google is connected</strong>
+                                    <small>You can sign in using your Google account.</small>
+                                </div>
+                                <button type="button" class="button-secondary button-sm" id="googleUnlinkBtn">
+                                    <i class="fas fa-link-slash"></i> Unlink
+                                </button>
+                            </div>
+
+                            <div class="profile-google-unlinked" id="googleUnlinkedBox" hidden>
+                                <p class="muted" id="googleLinkHint">Connect your Google account:</p>
+                                <div id="profileGoogleBtn"></div>
+                                <p class="muted profile-google-disabled" id="googleDisabledHint" hidden>
+                                    Google Sign-In is not configured on this server.
+                                </p>
+                            </div>
+                        </div>
+                        <p id="googleFeedback" class="feedback"></p>
+                    </section>
+                </div>
             </div>
 
             <div id="accountView" class="account-view">

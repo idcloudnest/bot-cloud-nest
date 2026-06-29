@@ -12,6 +12,7 @@ import { renderConversations, initConversations } from './features/conversations
 import { renderSettings, initSettings } from './features/settings.js';
 import { initSendMessage } from './features/send-message.js';
 import { initSessionUser } from './features/session-user.js';
+import { initProfile, showProfileView } from './features/profile.js';
 
 // --- Initialize interaction handlers (once on load) ---
 await initSessionUser();
@@ -24,6 +25,7 @@ initLogs();
 initConversations();
 initSettings();
 initSendMessage();
+initProfile();
 
 // Hash-based router = the single source of truth for the view.
 //   #dashboard / ''      -> dashboard (home)
@@ -37,6 +39,8 @@ function applyRoute() {
         showDashboardView();
     } else if (raw === 'accounts') {
         showAccountsListView();
+    } else if (raw === 'profile') {
+        showProfileView();
     } else if (raw.startsWith('account/')) {
         selectSession(decodeURIComponent(raw.slice('account/'.length)));
     } else if (store.getCurrent()) {

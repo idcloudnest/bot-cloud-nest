@@ -44,6 +44,7 @@ export function showDashboardView() {
     toggle($('#emptyState'), false, 'grid');
     toggle($('#accountView'), false, 'grid');
     toggle($('#accountsListView'), false, 'grid');
+    toggle($('#profileView'), false, 'grid');
     toggle($('#dashboardView'), true, 'grid');
 
     toggle($('#statusPill'), false, 'inline-flex');

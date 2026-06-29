@@ -69,14 +69,16 @@ export async function runCommand({ sessionId, sock, msg, jid, isGroup, features 
     if (isGroup && (command.adminOnly || command.botAdmin)) {
         try {
             ctx.group = await getGroupContext(sock, jid);
-            console.log(ctx.group);
-
         } catch (error) {
             logger.error(error, 'failed to load group metadata');
             return 'Gagal membaca data grup. Coba lagi sebentar lagi ya.';
         }
 
-        if (command.botAdmin && !ctx.group.isAdmin(ctx.botJid)) {
+        if (command.botAdmin && !ctx.group.isBotAdmin) {
+            logger.debug({
+                botIds: ctx.group.botIds,
+                admins: [...ctx.group.admins],
+            }, 'bot-admin check failed');
             return 'Jadikan bot sebagai *admin grup* dulu supaya perintah ini bisa jalan 🙏';
         }
         if (command.adminOnly && !ctx.group.isAdmin(ctx.sender)) {

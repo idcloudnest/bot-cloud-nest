@@ -33,12 +33,14 @@ export async function runCommand({ sessionId, sock, msg, jid, isGroup, features 
 
     const command = byName.get(name);
     if (!command) {
-        return `Perintah *${PREFIX}${name}* tidak dikenal. Ketik *${PREFIX}help* untuk daftar perintah.`;
+        // Unknown command: stay silent (only respond to real commands).
+        return null;
     }
 
-    // Feature gate.
+    // Feature gate: a disabled feature means the command doesn't exist for
+    // this bot, so we stay silent rather than replying.
     if (command.feature && !features[command.feature]) {
-        return `Fitur *${command.feature}* sedang dinonaktifkan untuk bot ini.`;
+        return null;
     }
 
     // Group-only gate.

@@ -5,7 +5,6 @@ import { extractMessageText } from '../utils/formatter.js';
 import { isCommand, runCommand } from '../commands/index.js';
 import { getBrands, getBrandGroups } from '../services/product-api.js';
 import {
-    welcomeMessage,
     brandListMessage,
     groupListMessage,
     productListMessage,
@@ -19,10 +18,9 @@ const STEP = {
     PRODUCT: 'CATALOG_PRODUCT', // showing products of a group
 };
 
-// Words that (re)open the catalog from anywhere.
+// Words that explicitly open the product catalog (store feature).
 const TRIGGERS = new Set([
-    'list', 'menu', 'mulai', 'start', 'produk', 'product',
-    'harga', 'katalog', 'order', 'p', 'halo', 'hai', 'hi', 'hello',
+    'list', 'menu', 'produk', 'product', 'harga', 'katalog', 'order',
 ]);
 
 const RESET = '#';
@@ -35,13 +33,13 @@ function parseChoice(text, length) {
     return n >= 1 && n <= length ? n - 1 : -1;
 }
 
-/** Normalize a reply (string | { text, mentions }) and send it. */
-async function sendReply(sessionId, sock, jid, reply) {
+/** Normalize a reply (string | { text, mentions }) and send it as a quoted reply. */
+async function sendReply(sessionId, sock, jid, reply, quoted) {
     if (!reply) return;
     const payload = typeof reply === 'string' ? { text: reply } : reply;
     try {
-        await sock.sendMessage(jid, payload);
-        await addLog(sessionId, 'outgoing', { text: payload.text }, jid);
+        await sock.sendMessage(jid, payload, quoted ? { quoted } : undefined);
+        // await addLog(sessionId, 'outgoing', { text: payload.text }, jid);
     } catch (error) {
         await addLog(sessionId, 'error', { text: `Failed to send reply: ${error.message}` }, jid);
     }
@@ -62,14 +60,14 @@ export async function handleMessage(sessionId, sock, msg) {
     if (isGroup && settings.ignoreGroups) return;
     if (!isGroup && settings.ignorePrivates) return;
 
-    await addLog(sessionId, 'incoming', { text }, jid);
+    // await addLog(sessionId, 'incoming', { text }, jid);
 
     const input = text.trim();
 
     // 1. Prefixed commands (.help, .kick, ...). Always parsed; feature-gated inside.
     if (isCommand(input)) {
         const reply = await runCommand({ sessionId, sock, msg, jid, isGroup, features }, input);
-        await sendReply(sessionId, sock, jid, reply);
+        await sendReply(sessionId, sock, jid, reply, msg);
         await notifyConversations(sessionId);
         return;
     }
@@ -83,7 +81,7 @@ export async function handleMessage(sessionId, sock, msg) {
             await addLog(sessionId, 'error', { text: `Flow error: ${error.message}` }, jid);
             reply = error.message || 'Maaf kak, terjadi kendala. Ketik *#* untuk mulai ulang.';
         }
-        await sendReply(sessionId, sock, jid, reply);
+        await sendReply(sessionId, sock, jid, reply, msg);
     }
 
     await notifyConversations(sessionId);
@@ -109,8 +107,8 @@ async function route({ sessionId, jid, input, lower }) {
         case STEP.PRODUCT:
             return handleProductChoice(sessionId, jid, input, data);
         default:
-            // IDLE / unknown: greet with a short, helpful intro.
-            return greet();
+            // IDLE / not in a flow and not a trigger: stay silent.
+            return '';
     }
 }
 
@@ -120,11 +118,6 @@ async function showBrands(sessionId, jid) {
     const brands = await getBrands();
     await conversationRepo.upsert(sessionId, jid, STEP.BRAND, {});
     return brandListMessage(brands);
-}
-
-async function greet() {
-    const brands = await getBrands();
-    return welcomeMessage(brands.length);
 }
 
 async function handleBrandChoice(sessionId, jid, input) {

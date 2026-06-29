@@ -69,10 +69,17 @@ export async function getGroupContext(sock, groupJid) {
 
     const admins = new Set();
     const participantsIds = new Set();
+    const byForm = new Map();    // any id form -> participant
+    const phoneByForm = new Map(); // any id form -> phone jid (@s.whatsapp.net)
+
     for (const p of participants) {
         const isAdm = p.admin === 'admin' || p.admin === 'superadmin';
-        for (const form of idForms(p)) {
+        const forms = idForms(p);
+        const phone = forms.find((f) => f.endsWith('@s.whatsapp.net')) || null;
+        for (const form of forms) {
             participantsIds.add(form);
+            byForm.set(form, p);
+            if (phone) phoneByForm.set(form, phone);
             if (isAdm) admins.add(form);
         }
     }
@@ -87,5 +94,49 @@ export async function getGroupContext(sock, groupJid) {
         botIds: botForms,
         isBotAdmin,
         isAdmin: (jid) => (jid ? admins.has(jidNormalizedUser(jid)) : false),
+        // Map any address (e.g. a @lid mention) to the phone-number jid.
+        resolvePhone: (jid) => {
+            if (!jid) return jid;
+            const n = jidNormalizedUser(jid);
+            if (n.endsWith('@s.whatsapp.net')) return n;
+            return phoneByForm.get(n) || n;
+        },
+        // The id WhatsApp expects for group actions (kick/promote/demote).
+        resolveActionId: (jid) => {
+            if (!jid) return jid;
+            const n = jidNormalizedUser(jid);
+            const p = byForm.get(n);
+            return p?.id ? jidNormalizedUser(p.id) : n;
+        },
     };
+}
+
+/**
+ * Resolve a single address to a phone-number jid using group metadata, with a
+ * best-effort fallback to Baileys' LID mapping. Used outside the command flow
+ * (e.g. the participants-update listener).
+ */
+export async function resolvePhoneJid(sock, groupJid, jid) {
+    if (!jid) return jid;
+    const n = jidNormalizedUser(jid);
+    if (n.endsWith('@s.whatsapp.net')) return n;
+
+    try {
+        const meta = await sock.groupMetadata(groupJid);
+        for (const p of meta.participants || []) {
+            const forms = [p.id, p.jid, p.lid, p.phoneNumber].filter(Boolean).map(jidNormalizedUser);
+            if (forms.includes(n)) {
+                const phone = forms.find((f) => f.endsWith('@s.whatsapp.net'));
+                if (phone) return phone;
+            }
+        }
+    } catch { /* ignore */ }
+
+    // Fallback: Baileys LID -> phone-number mapping, if available.
+    try {
+        const pn = await sock.signalRepository?.lidMapping?.getPNForLID?.(n);
+        if (pn) return jidNormalizedUser(pn);
+    } catch { /* ignore */ }
+
+    return n;
 }

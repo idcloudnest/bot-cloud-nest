@@ -2,7 +2,7 @@ import { config } from '../config.js';
 import * as groupRepo from '../db/repositories/group.repo.js';
 import { addLog } from '../state/app-state.js';
 import { logger } from '../utils/logger.js';
-import { mentionTag } from './wa-helpers.js';
+import { mentionTag, resolvePhoneJid } from './wa-helpers.js';
 
 // Group moderation commands. Each command runs only when the bot's `group`
 // feature is enabled (gated by the dispatcher) and inside a group chat.
@@ -69,8 +69,9 @@ const kick = {
         const safe = targets.filter((t) => !ctx.group.isAdmin(t));
         if (!safe.length) return 'Tidak bisa mengeluarkan admin grup 🙏';
 
-        await ctx.sock.groupParticipantsUpdate(ctx.jid, safe, 'remove');
-        await safeLog(ctx.sessionId, 'system', { text: `Kicked ${safe.join(', ')} from ${ctx.jid}` }, ctx.jid);
+        const actionIds = safe.map((t) => ctx.group?.resolveActionId(t) || t);
+        await ctx.sock.groupParticipantsUpdate(ctx.jid, actionIds, 'remove');
+        await safeLog(ctx.sessionId, 'system', { text: `Kicked ${actionIds.join(', ')} from ${ctx.jid}` }, ctx.jid);
         return withMentions(`✅ ${safe.map(mentionTag).join(', ')} dikeluarkan dari grup.`, safe);
     },
 };
@@ -128,18 +129,20 @@ const warn = {
         if (!targets.length) return 'Tag member yang mau diperingatkan.\nContoh: *.warn @user spam*';
         if (targets.some((t) => ctx.group.isAdmin(t))) return 'Tidak bisa memberi peringatan ke admin 🙏';
 
-        const target = targets[0];
+        const target = targets[0];                                  // for mention highlight
+        const phone = ctx.group?.resolvePhone(target) || target;    // stored/keyed by phone jid
+        const actionId = ctx.group?.resolveActionId(target) || target;
         const reason = ctx.args.filter((a) => !a.startsWith('@')).join(' ').trim() || null;
 
-        const count = await groupRepo.addWarning(ctx.sessionId, ctx.jid, target, reason);
+        const count = await groupRepo.addWarning(ctx.sessionId, ctx.jid, phone, reason);
 
         if (count >= WARN_LIMIT) {
-            await groupRepo.addBlacklist(ctx.sessionId, ctx.jid, target, reason || `Mencapai ${WARN_LIMIT} peringatan`);
-            await groupRepo.resetWarning(ctx.sessionId, ctx.jid, target);
+            await groupRepo.addBlacklist(ctx.sessionId, ctx.jid, phone, reason || `Mencapai ${WARN_LIMIT} peringatan`);
+            await groupRepo.resetWarning(ctx.sessionId, ctx.jid, phone);
             try {
-                await ctx.sock.groupParticipantsUpdate(ctx.jid, [target], 'remove');
+                await ctx.sock.groupParticipantsUpdate(ctx.jid, [actionId], 'remove');
             } catch { /* maybe already left */ }
-            await safeLog(ctx.sessionId, 'system', { text: `Auto-kick (warn limit) ${target} in ${ctx.jid}` }, ctx.jid);
+            await safeLog(ctx.sessionId, 'system', { text: `Auto-kick (warn limit) ${phone} in ${ctx.jid}` }, ctx.jid);
             return withMentions(
                 `🚫 ${mentionTag(target)} mencapai *${WARN_LIMIT}/${WARN_LIMIT}* peringatan.\n` +
                 `Dikeluarkan dan masuk daftar blokir grup ini. Jika join lagi akan otomatis dikeluarkan.`,
@@ -168,7 +171,8 @@ const unwarn = {
         if (!targets.length) return 'Tag member yang peringatannya mau dihapus.\nContoh: *.unwarn @user*';
 
         const target = targets[0];
-        const had = await groupRepo.resetWarning(ctx.sessionId, ctx.jid, target);
+        const phone = ctx.group?.resolvePhone(target) || target;
+        const had = await groupRepo.resetWarning(ctx.sessionId, ctx.jid, phone);
         return withMentions(
             had ? `✅ Peringatan ${mentionTag(target)} sudah direset.` : `${mentionTag(target)} tidak punya peringatan.`,
             [target],
@@ -185,7 +189,8 @@ const warns = {
     desc: 'Cek jumlah peringatan member',
     async handler(ctx) {
         const target = ctx.targets[0] || ctx.sender;
-        const count = await groupRepo.getWarning(ctx.sessionId, ctx.jid, target);
+        const phone = ctx.group?.resolvePhone(target) || target;
+        const count = await groupRepo.getWarning(ctx.sessionId, ctx.jid, phone);
         return withMentions(`ℹ️ ${mentionTag(target)} punya *${count}/${WARN_LIMIT}* peringatan.`, [target]);
     },
 };
@@ -259,9 +264,13 @@ export async function handleParticipantsUpdate(sessionId, sock, update, { groupE
 
     for (const userJid of joined) {
         try {
-            if (await groupRepo.isBlacklisted(sessionId, groupJid, userJid)) {
+            // Joined ids may be @lid; blacklist is keyed by phone jid.
+            const phone = await resolvePhoneJid(sock, groupJid, userJid);
+            const blocked = await groupRepo.isBlacklisted(sessionId, groupJid, phone)
+                || (phone !== userJid && await groupRepo.isBlacklisted(sessionId, groupJid, userJid));
+            if (blocked) {
                 await sock.groupParticipantsUpdate(groupJid, [userJid], 'remove');
-                await safeLog(sessionId, 'system', { text: `Auto-kicked blacklisted ${userJid} on rejoin in ${groupJid}` }, groupJid);
+                await safeLog(sessionId, 'system', { text: `Auto-kicked blacklisted ${phone} on rejoin in ${groupJid}` }, groupJid);
                 await sock.sendMessage(groupJid, {
                     text: `🚫 ${mentionTag(userJid)} ada di daftar blokir grup ini dan otomatis dikeluarkan.`,
                     mentions: [userJid],

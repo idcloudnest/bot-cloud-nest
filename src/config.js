@@ -32,4 +32,14 @@ export const config = {
         user: process.env.DB_USERNAME || 'root',
         password: process.env.DB_PASSWORD || '',
     },
+    // Product catalog API (Cloud Nest Store / idcloudnest /api/cns).
+    productApi: {
+        baseUrl: (process.env.API_BASE_URL || 'https://idcloudnest.com').replace(/\/+$/, ''),
+        token: process.env.API_TOKEN || '',
+        timeout: Number(process.env.API_TIMEOUT_MS || 15000),
+        // Cache TTL for brand/product lists (ms). 0 disables caching.
+        cacheTtlMs: Number(process.env.API_CACHE_TTL_MS || 5 * 60 * 1000),
+        // Store display name used in bot messages.
+        storeName: process.env.STORE_NAME || 'CLOUD NEST STORE',
+    },
 };

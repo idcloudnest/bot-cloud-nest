@@ -2,6 +2,37 @@ import { addLog, notifyConversations } from '../state/app-state.js';
 import * as conversationRepo from '../db/repositories/conversation.repo.js';
 import * as sessionRepo from '../db/repositories/session.repo.js';
 import { extractMessageText } from '../utils/formatter.js';
+import { getBrands, getBrandGroups } from '../services/product-api.js';
+import {
+    welcomeMessage,
+    brandListMessage,
+    groupListMessage,
+    productListMessage,
+    productDetailMessage,
+} from '../services/product-messages.js';
+
+// Conversation steps for the product catalog flow.
+const STEP = {
+    BRAND: 'CATALOG_BRAND',     // showing the brand list
+    GROUP: 'CATALOG_GROUP',     // showing product groups of a brand
+    PRODUCT: 'CATALOG_PRODUCT', // showing products of a group
+};
+
+// Words that (re)open the catalog from anywhere.
+const TRIGGERS = new Set([
+    'list', 'menu', 'mulai', 'start', 'produk', 'product',
+    'harga', 'katalog', 'order', 'p', 'halo', 'hai', 'hi', 'hello',
+]);
+
+const RESET = '#';
+const BACK = '0';
+
+/** Parse a 1-based list selection. Returns the 0-based index or -1. */
+function parseChoice(text, length) {
+    if (!/^\d+$/.test(text)) return -1;
+    const n = Number(text);
+    return n >= 1 && n <= length ? n - 1 : -1;
+}
 
 export async function handleMessage(sessionId, sock, msg) {
     if (!msg.message || msg.key.fromMe) return;
@@ -10,61 +41,148 @@ export async function handleMessage(sessionId, sock, msg) {
     const text = extractMessageText(msg);
     if (!text) return;
 
-    // 1. Check per-account settings (ignore groups/privates).
+    // Per-account settings (ignore groups/privates).
     const session = await sessionRepo.get(sessionId);
     const settings = session?.settings || {};
     const isGroup = jid.endsWith('@g.us');
-
     if (isGroup && settings.ignoreGroups) return;
     if (!isGroup && settings.ignorePrivates) return;
 
-    // Record the incoming message (for dashboard statistics).
     await addLog(sessionId, 'incoming', { text }, jid);
 
-    // 2. Load the conversation state from the DB.
-    const conversation = await conversationRepo.get(sessionId, jid);
-    const currentStep = conversation?.step || 'IDLE';
+    const input = text.trim();
+    const lower = input.toLowerCase();
 
-    let replyMessage = '';
-
-    // 3. Conversation flow (example: registration).
-    switch (currentStep) {
-        case 'IDLE':
-            if (text.toLowerCase() === 'register') {
-                await conversationRepo.upsert(sessionId, jid, 'ASK_NAME', {});
-                replyMessage = 'Hello! 👋 Welcome. Please type your *Full Name*:';
-            } else {
-                replyMessage = 'Type *register* to start the registration process.';
-            }
-            break;
-
-        case 'ASK_NAME':
-            await conversationRepo.upsert(sessionId, jid, 'ASK_EMAIL', { name: text });
-            replyMessage = `Alright, *${text}*. \nNext, please type your *Email Address*:`;
-            break;
-
-        case 'ASK_EMAIL': {
-            const savedData = conversation.data || {};
-            await conversationRepo.remove(sessionId, jid);
-            replyMessage = `✅ *Registration Successful!*\n\nName: ${savedData.name}\nEmail: ${text}\n\nThank you for registering!`;
-            break;
-        }
-
-        default:
-            await conversationRepo.remove(sessionId, jid);
-            replyMessage = 'Sorry, a session error occurred. Type *register* to start over.';
-            break;
+    let reply = '';
+    try {
+        reply = await route({ sessionId, jid, input, lower });
+    } catch (error) {
+        await addLog(sessionId, 'error', { text: `Flow error: ${error.message}` }, jid);
+        reply = error.message || 'Maaf kak, terjadi kendala. Ketik *#* untuk mulai ulang.';
     }
 
-    if (replyMessage) {
+    if (reply) {
         try {
-            await sock.sendMessage(jid, { text: replyMessage });
-            await addLog(sessionId, 'outgoing', { text: replyMessage }, jid);
+            await sock.sendMessage(jid, { text: reply });
+            await addLog(sessionId, 'outgoing', { text: reply }, jid);
         } catch (error) {
             await addLog(sessionId, 'error', { text: `Failed to send reply: ${error.message}` }, jid);
         }
     }
 
-    // 4. Refresh the conversations table in the dashboard.
     await notifyConversations(sessionId);
+}
+
+/** Decide the reply based on the current step + input. Returns the reply text. */
+async function route({ sessionId, jid, input, lower }) {
+    // Global: reset.
+    if (input === RESET) return showBrands(sessionId, jid);
+
+    // Global: trigger words reopen the catalog.
+    if (TRIGGERS.has(lower)) return showBrands(sessionId, jid);
+
+    const conversation = await conversationRepo.get(sessionId, jid);
+    const step = conversation?.step || 'IDLE';
+    const data = conversation?.data || {};
+
+    switch (step) {
+        case STEP.BRAND:
+            return handleBrandChoice(sessionId, jid, input);
+        case STEP.GROUP:
+            return handleGroupChoice(sessionId, jid, input, data);
+        case STEP.PRODUCT:
+            return handleProductChoice(sessionId, jid, input, data);
+        default:
+            // IDLE / unknown: greet with a short, helpful intro.
+            return greet();
+    }
+}
+
+// --- Step handlers ---
+
+async function showBrands(sessionId, jid) {
+    const brands = await getBrands();
+    await conversationRepo.upsert(sessionId, jid, STEP.BRAND, {});
+    return brandListMessage(brands);
+}
+
+async function greet() {
+    const brands = await getBrands();
+    return welcomeMessage(brands.length);
+}
+
+async function handleBrandChoice(sessionId, jid, input) {
+    const brands = await getBrands();
+    const idx = parseChoice(input, brands.length);
+    if (idx === -1) {
+        return `Nomor brand tidak valid kak 🙏\n\n${brandListMessage(brands)}`;
+    }
+
+    const brand = brands[idx];
+    const groups = await getBrandGroups(brand.id);
+
+    if (!groups.length) {
+        return `Maaf kak, produk *${brand.name}* belum tersedia 🙏\n\nKetik *#* untuk kembali ke list brand.`;
+    }
+
+    // Single category -> jump straight to its product list.
+    if (groups.length === 1) {
+        await conversationRepo.upsert(sessionId, jid, STEP.PRODUCT, {
+            brandId: brand.id,
+            brandName: brand.name,
+            groupIndex: 0,
+            groupName: groups[0].name,
+            singleGroup: true,
+        });
+        return productListMessage(brand.name, groups[0].name, groups[0].products);
+    }
+
+    await conversationRepo.upsert(sessionId, jid, STEP.GROUP, {
+        brandId: brand.id,
+        brandName: brand.name,
+    });
+    return groupListMessage(brand.name, groups);
+}
+
+async function handleGroupChoice(sessionId, jid, input, data) {
+    if (input === BACK) return showBrands(sessionId, jid);
+
+    const groups = await getBrandGroups(data.brandId);
+    const idx = parseChoice(input, groups.length);
+    if (idx === -1) {
+        return `Nomor jenis produk tidak valid kak 🙏\n\n${groupListMessage(data.brandName, groups)}`;
+    }
+
+    const group = groups[idx];
+    await conversationRepo.upsert(sessionId, jid, STEP.PRODUCT, {
+        brandId: data.brandId,
+        brandName: data.brandName,
+        groupIndex: idx,
+        groupName: group.name,
+        singleGroup: false,
+    });
+    return productListMessage(data.brandName, group.name, group.products);
+}
+
+async function handleProductChoice(sessionId, jid, input, data) {
+    if (input === BACK) {
+        // Back to the group list, or to brands if the brand only had one group.
+        if (data.singleGroup) return showBrands(sessionId, jid);
+        const groups = await getBrandGroups(data.brandId);
+        await conversationRepo.upsert(sessionId, jid, STEP.GROUP, {
+            brandId: data.brandId,
+            brandName: data.brandName,
+        });
+        return groupListMessage(data.brandName, groups);
+    }
+
+    const groups = await getBrandGroups(data.brandId);
+    const group = groups[data.groupIndex] || { name: data.groupName, products: [] };
+    const idx = parseChoice(input, group.products.length);
+    if (idx === -1) {
+        return `Nomor produk tidak valid kak 🙏\n\n${productListMessage(data.brandName, group.name, group.products)}`;
+    }
+
+    // Stay on the product step so the user can view another item or go back.
+    return productDetailMessage(data.brandName, group.name, group.products[idx]);
 }

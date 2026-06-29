@@ -1,7 +1,7 @@
 import { $ } from '../core/dom.js';
 
 /**
- * Tampilkan modal konfirmasi. Mengembalikan Promise<boolean>.
+ * Show a confirmation modal. Returns Promise<boolean>.
  * options: { title, message, confirmText, cancelText }
  */
 export function showConfirmModal(options = {}) {
@@ -11,10 +11,10 @@ export function showConfirmModal(options = {}) {
     const okButton = $('#confirmOkButton');
     const cancelButton = $('#confirmCancelButton');
 
-    title.textContent = options.title || 'Konfirmasi';
-    message.textContent = options.message || 'Lanjutkan action ini?';
-    okButton.textContent = options.confirmText || 'Ya';
-    cancelButton.textContent = options.cancelText || 'Batal';
+    title.textContent = options.title || 'Confirmation';
+    message.textContent = options.message || 'Continue with this action?';
+    okButton.textContent = options.confirmText || 'Yes';
+    cancelButton.textContent = options.cancelText || 'Cancel';
 
     return new Promise((resolve) => {
         const close = (value) => {

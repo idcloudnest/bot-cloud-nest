@@ -20,8 +20,8 @@ export function renderDevice(status = {}) {
     const actions = $('#deviceActions');
 
     if (!isConnected) {
-        setText($('#deviceName'), 'Belum ada device connected');
-        setText($('#deviceDescription'), 'Scan QR WhatsApp untuk menghubungkan device ke bot.');
+        setText($('#deviceName'), 'No device connected yet');
+        setText($('#deviceDescription'), 'Scan the WhatsApp QR to connect a device to the bot.');
         setText($('#deviceId'), '-');
         setText($('#devicePlatform'), '-');
         setText($('#deviceConnectedAt'), '-');
@@ -30,7 +30,7 @@ export function renderDevice(status = {}) {
     }
 
     setText($('#deviceName'), device.verifiedName || device.name || 'WhatsApp Device');
-    setText($('#deviceDescription'), 'Device ini sedang aktif dan dipakai bot untuk menerima/mengirim pesan.');
+    setText($('#deviceDescription'), 'This device is active and used by the bot to receive/send messages.');
     setText($('#deviceId'), device.id || device.lid || '-');
     setText($('#devicePlatform'), device.platform || 'WhatsApp');
     setText($('#deviceConnectedAt'), device.connectedAt ? formatDate(device.connectedAt) : '-');
@@ -44,17 +44,17 @@ export function initDevice() {
 
         const confirmed = await showConfirmModal({
             title: 'Restart Bot?',
-            message: 'Bot akan diputus sementara dan mencoba terhubung kembali. Sesi WA tidak akan dihapus (tidak perlu scan QR ulang).',
-            confirmText: 'Ya, Restart',
+            message: 'The bot will be temporarily disconnected and try to reconnect. The WA session will not be deleted (no need to scan the QR again).',
+            confirmText: 'Yes, Restart',
         });
         if (!confirmed) return;
 
-        showToast('Merestart bot...', 'info');
+        showToast('Restarting bot...', 'info');
         try {
             await api.restart(id);
-            showToast('Perintah restart berhasil dikirim.', 'success');
+            showToast('Restart command sent successfully.', 'success');
         } catch (error) {
-            showToast(error.message || 'Gagal merestart bot.', 'error');
+            showToast(error.message || 'Failed to restart bot.', 'error');
         }
     });
 
@@ -64,17 +64,17 @@ export function initDevice() {
 
         const confirmed = await showConfirmModal({
             title: 'Disconnect (Logout)?',
-            message: 'Akses ke akun WhatsApp ini akan dicabut sepenuhnya. Anda harus scan QR lagi untuk menghubungkan bot.',
-            confirmText: 'Ya, Logout',
+            message: 'Access to this WhatsApp account will be fully revoked. You will have to scan the QR again to connect the bot.',
+            confirmText: 'Yes, Logout',
         });
         if (!confirmed) return;
 
-        showToast('Melogout device...', 'warning');
+        showToast('Logging out device...', 'warning');
         try {
             await api.logout(id);
-            showToast('Berhasil logout dari device.', 'success');
+            showToast('Successfully logged out from the device.', 'success');
         } catch (error) {
-            showToast(error.message || 'Gagal logout device.', 'error');
+            showToast(error.message || 'Failed to log out device.', 'error');
         }
     });
 }

@@ -7,16 +7,17 @@ const GENERATE_QR_HTML = '<i class="fas fa-qrcode"></i> Generate QR Code';
 
 let qrTimerInterval = null;
 let lastEmptyKey = null;
+let lastTimeoutSec = 60; // seconds, updated from the QR payload (backend config)
 
-// Putar ulang animasi entrance pada elemen (restart CSS animation via reflow).
+// Replay the entrance animation on an element (restart CSS animation via reflow).
 function replayAnimation(el) {
     if (!el) return;
     el.style.animation = 'none';
-    void el.offsetWidth; // paksa reflow
+    void el.offsetWidth; // force reflow
     el.style.animation = '';
 }
 
-// --- Timer countdown QR ---
+// --- QR countdown timer ---
 
 function stopQrTimer() {
     if (qrTimerInterval) {
@@ -43,9 +44,9 @@ function startQrTimer(expireAtMs) {
         if (remaining <= 0) {
             countText.textContent = '0';
             stopQrTimer();
-            // Bersihkan QR + set idle agar QR image & timer hilang bersamaan,
-            // lalu kartu "QR Kadaluarsa" muncul. Backend juga akan kirim idle.
-            store.setStatus({ connection: 'idle', connected: false, message: 'QR Code Kadaluarsa' });
+            // Clear the QR + set idle so the QR image & timer disappear together,
+            // then the "QR Expired" card appears. Backend will also send idle.
+            store.setStatus({ connection: 'idle', connected: false, message: 'QR Code Expired' });
             store.setQr(null);
             renderQrState();
             return;
@@ -114,7 +115,7 @@ export function renderQrState() {
         const desc = $('#qrStateDescription');
         if (desc) desc.innerHTML = description;
 
-        // Animasikan ulang hanya saat state benar-benar berubah (hindari spam).
+        // Re-animate only when the state actually changes (avoid spam).
         if (lastEmptyKey !== title) {
             lastEmptyKey = title;
             replayAnimation(qrEmpty);
@@ -138,14 +139,16 @@ export function renderQrState() {
         toggle(btnGenerate, false);
 
         setBadge('Connected', 'connected');
-        setEmpty('WhatsApp sudah terhubung', 'Bot sudah connected ke WhatsApp. QR disembunyikan otomatis demi keamanan.', '✅');
-        setHint('Bot siap menerima dan mengirim pesan. Kalau ingin scan ulang, logout dulu sesi WhatsApp.', 'success');
-        setText(mainDesc, 'WhatsApp sudah berhasil terhubung ke bot.');
+        setEmpty('WhatsApp is connected', 'The bot is connected to WhatsApp. The QR is hidden automatically for security.', '✅');
+        setHint('The bot is ready to receive and send messages. To scan again, log out of the WhatsApp session first.', 'success');
+        setText(mainDesc, 'WhatsApp has been successfully connected to the bot.');
         return;
     }
 
-    // 2. QR READY (abaikan QR yang expire-nya sudah lewat agar tidak "muncul lagi")
+    // 2. QR READY (ignore a QR whose expiry has passed so it doesn't "show up again")
     if (qrDataUrl && (!expireAt || expireAt > Date.now())) {
+        const timeoutMs = payload?.timeoutMs || payload?.qr?.timeoutMs;
+        if (timeoutMs) lastTimeoutSec = Math.round(timeoutMs / 1000);
         qrImage.src = qrDataUrl;
         qrImage.style.display = 'block';
         qrEmpty.style.display = 'none';
@@ -155,8 +158,8 @@ export function renderQrState() {
         if (expireAt && !qrTimerInterval) startQrTimer(expireAt);
 
         setBadge('QR Ready', 'ready');
-        setHint('Silakan scan QR ini dari WhatsApp > Linked Devices. QR bisa berubah otomatis kalau expired.', 'info');
-        setText(mainDesc, 'Scan QR berikut untuk menghubungkan WhatsApp ke bot.');
+        setHint('Please scan this QR from WhatsApp > Linked Devices. The QR may change automatically if it expires.', 'info');
+        setText(mainDesc, 'Scan the QR below to connect WhatsApp to the bot.');
         return;
     }
 
@@ -174,50 +177,50 @@ export function renderQrState() {
 
     if (connection === 'logged_out' || connection === 'idle') {
         setBadge('Disconnected', 'disconnected');
-        if (status.message === 'QR Code Kadaluarsa') {
-            setEmpty('QR Code Kadaluarsa', 'Waktu untuk scan QR (60 detik) sudah habis. Demi keamanan, sesi dihentikan sementara.', '⏱️');
-            setHint(`Silakan klik tombol <b>${GENERATE_QR_HTML}</b> untuk men-generate QR yang baru.`, 'danger');
+        if (status.message === 'QR Code Expired') {
+            setEmpty('QR Code Expired', `The time to scan the QR (${lastTimeoutSec} seconds) has run out. For security, the session was stopped temporarily.`, '⏱️');
+            setHint(`Please click the <b>${GENERATE_QR_HTML}</b> button to generate a new QR.`, 'danger');
         } else {
-            setEmpty('Siap Menghubungkan', `Sesi WhatsApp kosong. Silakan klik tombol <b>${GENERATE_QR_HTML}</b> untuk memunculkan QR Code.`, '🚪');
-            setHint(`Klik tombol <b>${GENERATE_QR_HTML}</b> untuk mulai menghubungkan bot.`, 'warning');
+            setEmpty('Ready to Connect', `The WhatsApp session is empty. Please click the <b>${GENERATE_QR_HTML}</b> button to show the QR Code.`, '🚪');
+            setHint(`Click the <b>${GENERATE_QR_HTML}</b> button to start connecting the bot.`, 'warning');
         }
         toggle(btnGenerate, true, 'inline-flex');
-        setText(mainDesc, 'Koneksi WhatsApp perlu disambungkan ulang.');
+        setText(mainDesc, 'The WhatsApp connection needs to be reconnected.');
         return;
     }
 
     if (connection === 'reconnecting') {
         setBadge('Disconnected', 'disconnected');
-        setEmpty('Menghubungkan ulang...', 'Koneksi terputus. Mencoba reconnect otomatis.', '🔄');
-        setHint('Mohon tunggu beberapa detik...', 'warning');
-        setText(mainDesc, 'Koneksi WhatsApp sedang bermasalah atau perlu disambungkan ulang.');
+        setEmpty('Reconnecting...', 'Connection lost. Trying to reconnect automatically.', '🔄');
+        setHint('Please wait a few seconds...', 'warning');
+        setText(mainDesc, 'The WhatsApp connection is having issues or needs to be reconnected.');
         return;
     }
 
     if (connection === 'close' || connection === 'error') {
         setBadge('Disconnected', 'disconnected');
-        setEmpty('Koneksi terputus', 'Bot belum terhubung ke WhatsApp saat ini.', '⚠️');
-        setHint('Periksa log untuk detail error.', 'danger');
-        setText(mainDesc, 'Koneksi WhatsApp sedang bermasalah atau perlu disambungkan ulang.');
+        setEmpty('Connection lost', 'The bot is not connected to WhatsApp right now.', '⚠️');
+        setHint('Check the logs for error details.', 'danger');
+        setText(mainDesc, 'The WhatsApp connection is having issues or needs to be reconnected.');
         return;
     }
 
     // 4. STARTING / CONNECTING / WAITING
     setBadge('Waiting', 'waiting');
     if (connection === 'starting') {
-        setEmpty('Bot sedang starting', 'Mohon tunggu, bot sedang menyiapkan koneksi WhatsApp.', '⏳');
-        setHint('Jika terlalu lama di status ini, cek log backend atau restart server.', 'warning');
+        setEmpty('Bot is starting', 'Please wait, the bot is preparing the WhatsApp connection.', '⏳');
+        setHint('If it stays in this state too long, check the backend logs or restart the server.', 'warning');
     } else if (connection === 'connecting') {
-        setEmpty('Sedang menghubungkan ke WhatsApp', 'Bot sedang mencoba membuat koneksi ke server WhatsApp.', '📡');
-        setHint('Tunggu sebentar. QR akan muncul jika sesi belum terhubung.', 'info');
+        setEmpty('Connecting to WhatsApp', 'The bot is trying to establish a connection to the WhatsApp server.', '📡');
+        setHint('Please wait a moment. The QR will appear if the session is not yet connected.', 'info');
     } else {
-        setEmpty('QR belum tersedia', 'QR belum dibuat atau bot belum siap untuk scan.', '📱');
-        setHint('Tunggu sampai QR tersedia. Jika tidak muncul, cek status koneksi dan log bot.', 'info');
+        setEmpty('QR not available yet', 'The QR has not been generated or the bot is not ready to scan.', '📱');
+        setHint('Wait until the QR is available. If it does not appear, check the connection status and bot logs.', 'info');
     }
-    setText(mainDesc, 'Hubungkan WhatsApp ke bot dengan scan QR dari menu Linked Devices.');
+    setText(mainDesc, 'Connect WhatsApp to the bot by scanning the QR from the Linked Devices menu.');
 }
 
-// --- Init: tombol Generate QR ---
+// --- Init: Generate QR button ---
 
 export function initQr() {
     const btnGenerate = $('#btnGenerateQr');
@@ -227,14 +230,14 @@ export function initQr() {
         const id = store.getCurrent();
         if (!id) return;
 
-        showToast('Menyiapkan QR Code...', 'info');
+        showToast('Preparing QR Code...', 'info');
         btnGenerate.disabled = true;
         btnGenerate.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
 
         try {
             await api.start(id);
         } catch (error) {
-            showToast(error.message || 'Gagal membuat QR.', 'error');
+            showToast(error.message || 'Failed to create QR.', 'error');
             btnGenerate.disabled = false;
             btnGenerate.innerHTML = GENERATE_QR_HTML;
         }

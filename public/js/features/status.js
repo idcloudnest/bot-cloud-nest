@@ -3,7 +3,7 @@ import { store } from '../core/store.js';
 import { renderQrState } from './qr.js';
 import { renderDevice } from './device.js';
 
-// Pemetaan state koneksi -> tampilan pill (satu sumber kebenaran).
+// Mapping of connection state -> pill display (single source of truth).
 const STATUS_VIEW = {
     starting:     { variant: 'warning', icon: 'fa-circle-notch fa-spin', label: 'Starting' },
     connecting:   { variant: 'warning', icon: 'fa-circle-notch fa-spin', label: 'Connecting...' },
@@ -48,7 +48,7 @@ export function renderStatus(status = {}) {
     setText($('#lastError'), status.lastError || 'No error');
     setText($('#startedAtValue'), status.startedAt ? formatDate(status.startedAt) : '-');
 
-    // Panel terkait
+    // Related panels
     renderQrState();
     renderDevice(status);
 }

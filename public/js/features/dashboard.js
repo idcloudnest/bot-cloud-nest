@@ -21,8 +21,8 @@ const TYPE_COLOR = {
 };
 
 const TYPE_LABEL = {
-    incoming: 'Masuk',
-    outgoing: 'Keluar',
+    incoming: 'Incoming',
+    outgoing: 'Outgoing',
     system: 'System',
     error: 'Error',
 };
@@ -37,7 +37,7 @@ function shortDate(iso) {
     return `${d}/${m}`;
 }
 
-/** Tampilkan view dashboard. */
+/** Show the dashboard view. */
 export function showDashboardView() {
     store.setView('dashboard');
 
@@ -56,7 +56,7 @@ export function showDashboardView() {
     loadDashboard();
 }
 
-/** Muat ulang data hanya jika sedang di view dashboard. */
+/** Reload data only if currently in the dashboard view. */
 export function refreshDashboard() {
     if (store.getView() === 'dashboard') loadDashboard();
 }
@@ -69,7 +69,7 @@ async function loadDashboard() {
         renderSummary(data.summary);
         renderCharts(data);
     } catch (error) {
-        showToast(error.message || 'Gagal memuat dashboard.', 'error');
+        showToast(error.message || 'Failed to load dashboard.', 'error');
     } finally {
         loading = false;
     }
@@ -116,20 +116,20 @@ function upsertChart(key, canvasId, config) {
 function renderCharts(data) {
     const labels = data.series.map((p) => shortDate(p.date));
 
-    // Pesan masuk & keluar (line).
+    // Incoming & outgoing messages (line).
     upsertChart('messages', 'chartMessages', {
         type: 'line',
         data: {
             labels,
             datasets: [
-                lineDataset('Masuk', data.series.map((p) => p.incoming), COLORS.info),
-                lineDataset('Keluar', data.series.map((p) => p.outgoing), COLORS.success),
+                lineDataset('Incoming', data.series.map((p) => p.incoming), COLORS.info),
+                lineDataset('Outgoing', data.series.map((p) => p.outgoing), COLORS.success),
             ],
         },
         options: baseOptions(),
     });
 
-    // Error per hari (bar).
+    // Errors per day (bar).
     upsertChart('errors', 'chartErrors', {
         type: 'bar',
         data: {
@@ -145,7 +145,7 @@ function renderCharts(data) {
         options: baseOptions({ plugins: { legend: { display: false } } }),
     });
 
-    // Distribusi tipe log (donut).
+    // Log type distribution (donut).
     const breakdown = data.breakdown.length ? data.breakdown : [{ type: 'none', total: 0 }];
     upsertChart('types', 'chartTypes', {
         type: 'doughnut',
@@ -165,13 +165,13 @@ function renderCharts(data) {
         },
     });
 
-    // Top akun (horizontal bar).
+    // Top accounts (horizontal bar).
     upsertChart('top', 'chartTopAccounts', {
         type: 'bar',
         data: {
             labels: data.topAccounts.map((a) => a.name),
             datasets: [{
-                label: 'Total pesan',
+                label: 'Total messages',
                 data: data.topAccounts.map((a) => a.total),
                 backgroundColor: COLORS.accent,
                 borderRadius: 6,

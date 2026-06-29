@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
 
 <head>
     <meta charset="utf-8" />
@@ -28,26 +28,37 @@
                     <i class="fas fa-chart-line"></i> Dashboard
                 </a>
                 <a href="#accounts" id="navAccountsList" class="nav-primary">
-                    <i class="fas fa-table-list"></i> Daftar Akun
+                    <i class="fas fa-table-list"></i> Account List
                 </a>
 
                 <div id="accountMenu" class="nav-group" style="display:none">
                     <div class="nav-account">
                         <span class="nav-account-dot" id="navAccountDot"></span>
                         <div class="nav-account-info">
-                            <small>Akun aktif</small>
+                            <small>Active account</small>
                             <strong id="navAccountName">-</strong>
                         </div>
                     </div>
                     <a href="#overview">Overview</a>
                     <a href="#qr">QR Login</a>
                     <a href="#device">Device</a>
-                    <a href="#send">Kirim Pesan</a>
+                    <a href="#send">Send Message</a>
                     <a href="#settings">Settings</a>
                     <a href="#sessions">Conversations</a>
                     <a href="#logs">Logs</a>
                 </div>
             </nav>
+
+            <div class="sidebar-user" id="sidebarUser">
+                <div class="sidebar-user-avatar" id="userAvatar"></div>
+                <div class="sidebar-user-info">
+                    <strong id="userName">-</strong>
+                    <small id="userEmail">-</small>
+                </div>
+                <button id="logoutButton" class="sidebar-logout" title="Sign out">
+                    <i class="fas fa-right-from-bracket"></i>
+                </button>
+            </div>
         </aside>
 
         <section class="content">
@@ -59,7 +70,7 @@
                 </div>
 
                 <div class="topbar-status">
-                    <div id="statusPill" class="pill pill-warning is-hidden" title="Status koneksi akun ini">
+                    <div id="statusPill" class="pill pill-warning is-hidden" title="Connection status of this account">
                         <i id="statusIcon" class="fas fa-circle-notch fa-spin"></i>
                         <span id="statusPillText">-</span>
                     </div>
@@ -67,7 +78,7 @@
                         <i class="fas fa-clock"></i> Last update: -
                     </small>
                     <button id="btnDeleteAccount" class="button-danger button-sm is-hidden">
-                        <i class="fas fa-trash-alt"></i> Hapus Akun
+                        <i class="fas fa-trash-alt"></i> Delete Account
                     </button>
                 </div>
             </header>
@@ -77,19 +88,19 @@
                     <div class="empty-orb">
                         <span class="empty-emoji">💬</span>
                     </div>
-                    <span class="empty-badge"><span class="pulse-dot"></span> Belum ada akun terhubung</span>
-                    <h2>Hubungkan akun WhatsApp pertamamu</h2>
+                    <span class="empty-badge"><span class="pulse-dot"></span> No account connected yet</span>
+                    <h2>Connect your first WhatsApp account</h2>
                     <p class="muted">
-                        Tambah akun, scan QR sekali, lalu bot siap menerima &amp; membalas pesan.
-                        Kelola banyak akun sekaligus dari satu dashboard.
+                        Add an account, scan the QR once, and the bot is ready to receive &amp; reply to messages.
+                        Manage many accounts at once from a single dashboard.
                     </p>
                     <button id="emptyAddAccount" class="empty-add">
-                        <i class="fas fa-plus"></i> Tambah Akun WhatsApp
+                        <i class="fas fa-plus"></i> Add WhatsApp Account
                     </button>
                     <div class="empty-features">
                         <div class="empty-feature"><i class="fas fa-qrcode"></i><span>Login via QR</span></div>
-                        <div class="empty-feature"><i class="fas fa-layer-group"></i><span>Multi akun</span></div>
-                        <div class="empty-feature"><i class="fas fa-database"></i><span>Tersimpan di MySQL</span></div>
+                        <div class="empty-feature"><i class="fas fa-layer-group"></i><span>Multi account</span></div>
+                        <div class="empty-feature"><i class="fas fa-database"></i><span>Stored in MySQL</span></div>
                     </div>
                 </div>
             </section>
@@ -97,14 +108,14 @@
             <div id="dashboardView" class="dashboard-view">
                 <div class="dash-toolbar">
                     <div>
-                        <p class="eyebrow">Statistik</p>
-                        <h2>Ringkasan Aktivitas Bot</h2>
-                        <p class="muted">Data harian diambil langsung dari database.</p>
+                        <p class="eyebrow">Statistics</p>
+                        <h2>Bot Activity Summary</h2>
+                        <p class="muted">Daily data pulled directly from the database.</p>
                     </div>
                     <select id="dashRange" class="acc-select">
-                        <option value="7">7 hari terakhir</option>
-                        <option value="14" selected>14 hari terakhir</option>
-                        <option value="30">30 hari terakhir</option>
+                        <option value="7">Last 7 days</option>
+                        <option value="14" selected>Last 14 days</option>
+                        <option value="30">Last 30 days</option>
                     </select>
                 </div>
 
@@ -112,33 +123,33 @@
                     <article class="card stat-card">
                         <div class="stat-icon stat-accent"><i class="fas fa-users"></i></div>
                         <div>
-                            <p class="card-label">Total Akun</p>
+                            <p class="card-label">Total Accounts</p>
                             <h3 id="statTotalAccounts">0</h3>
-                            <p class="muted"><span id="statConnected">0</span> terhubung</p>
+                            <p class="muted"><span id="statConnected">0</span> connected</p>
                         </div>
                     </article>
                     <article class="card stat-card">
                         <div class="stat-icon stat-success"><i class="fas fa-comments"></i></div>
                         <div>
-                            <p class="card-label">Pesan Hari Ini</p>
+                            <p class="card-label">Messages Today</p>
                             <h3 id="statMessagesToday">0</h3>
-                            <p class="muted"><span id="statIncomingToday">0</span> masuk / <span id="statOutgoingToday">0</span> keluar</p>
+                            <p class="muted"><span id="statIncomingToday">0</span> in / <span id="statOutgoingToday">0</span> out</p>
                         </div>
                     </article>
                     <article class="card stat-card">
                         <div class="stat-icon stat-danger"><i class="fas fa-triangle-exclamation"></i></div>
                         <div>
-                            <p class="card-label">Error Hari Ini</p>
+                            <p class="card-label">Errors Today</p>
                             <h3 id="statErrorsToday">0</h3>
-                            <p class="muted">Log bertipe error</p>
+                            <p class="muted">Logs of type error</p>
                         </div>
                     </article>
                     <article class="card stat-card">
                         <div class="stat-icon stat-info"><i class="fas fa-comment-dots"></i></div>
                         <div>
-                            <p class="card-label">Percakapan Aktif</p>
+                            <p class="card-label">Active Conversations</p>
                             <h3 id="statConversations">0</h3>
-                            <p class="muted">Sedang dalam flow</p>
+                            <p class="muted">Currently in a flow</p>
                         </div>
                     </article>
                 </section>
@@ -147,7 +158,7 @@
                     <div class="section-head">
                         <div>
                             <p class="eyebrow">Trafik</p>
-                            <h2>Pesan Masuk &amp; Keluar per Hari</h2>
+                            <h2>Incoming &amp; Outgoing Messages per Day</h2>
                         </div>
                     </div>
                     <div class="chart-box"><canvas id="chartMessages"></canvas></div>
@@ -157,8 +168,8 @@
                     <section class="panel">
                         <div class="section-head">
                             <div>
-                                <p class="eyebrow">Reliabilitas</p>
-                                <h2>Error per Hari</h2>
+                                <p class="eyebrow">Reliability</p>
+                                <h2>Errors per Day</h2>
                             </div>
                         </div>
                         <div class="chart-box"><canvas id="chartErrors"></canvas></div>
@@ -167,8 +178,8 @@
                     <section class="panel">
                         <div class="section-head">
                             <div>
-                                <p class="eyebrow">Distribusi</p>
-                                <h2>Tipe Log</h2>
+                                <p class="eyebrow">Distribution</p>
+                                <h2>Log Types</h2>
                             </div>
                         </div>
                         <div class="chart-box chart-box-donut"><canvas id="chartTypes"></canvas></div>
@@ -178,8 +189,8 @@
                 <section class="panel">
                     <div class="section-head">
                         <div>
-                            <p class="eyebrow">Top Akun</p>
-                            <h2>Akun Paling Aktif</h2>
+                            <p class="eyebrow">Top Accounts</p>
+                            <h2>Most Active Accounts</h2>
                         </div>
                     </div>
                     <div class="chart-box"><canvas id="chartTopAccounts"></canvas></div>
@@ -191,21 +202,21 @@
                     <div class="section-head">
                         <div>
                             <p class="eyebrow">Registry</p>
-                            <h2>Daftar Akun WhatsApp</h2>
-                            <p class="muted">Kelola semua akun. Data dimuat per halaman dari server.</p>
+                            <h2>WhatsApp Account List</h2>
+                            <p class="muted">Manage all accounts. Data is loaded per page from the server.</p>
                         </div>
                         <button id="listAddAccount" class="button-sm">
-                            <i class="fas fa-plus"></i> Tambah Akun
+                            <i class="fas fa-plus"></i> Add Account
                         </button>
                     </div>
 
                     <div class="acc-filter-bar">
                         <div class="acc-search">
                             <i class="fas fa-search"></i>
-                            <input id="accSearchInput" type="text" placeholder="Cari nama atau ID akun..." />
+                            <input id="accSearchInput" type="text" placeholder="Search account name or ID..." />
                         </div>
                         <select id="accStatusFilter" class="acc-select">
-                            <option value="">Semua Status</option>
+                            <option value="">All Status</option>
                             <option value="connected">Connected</option>
                             <option value="qr">QR</option>
                             <option value="connecting">Connecting</option>
@@ -216,10 +227,10 @@
                             <option value="error">Error</option>
                         </select>
                         <select id="accPageSize" class="acc-select">
-                            <option value="10">10 / halaman</option>
-                            <option value="25">25 / halaman</option>
-                            <option value="50">50 / halaman</option>
-                            <option value="100">100 / halaman</option>
+                            <option value="10">10 / page</option>
+                            <option value="25">25 / page</option>
+                            <option value="50">50 / page</option>
+                            <option value="100">100 / page</option>
                         </select>
                     </div>
 
@@ -227,11 +238,12 @@
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Nama</th>
+                                    <th>Name</th>
                                     <th>ID</th>
+                                    <th id="accOwnerCol" hidden>Owner</th>
                                     <th>Status</th>
                                     <th>Last Update</th>
-                                    <th>Aksi</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody id="accountsTable"></tbody>
@@ -244,7 +256,7 @@
                             <button id="accPrevPage" class="button-secondary button-sm">
                                 <i class="fas fa-chevron-left"></i> Prev
                             </button>
-                            <span id="accPageInfo" class="muted">Halaman 1 / 1</span>
+                            <span id="accPageInfo" class="muted">Page 1 / 1</span>
                             <button id="accNextPage" class="button-secondary button-sm">
                                 Next <i class="fas fa-chevron-right"></i>
                             </button>
@@ -275,27 +287,27 @@
                 <section id="qr" class="panel qr-panel two-col">
                     <div class="qr-copy">
                         <p class="eyebrow">Login</p>
-                        <h2>Scan QR WhatsApp</h2>
+                        <h2>Scan WhatsApp QR</h2>
                         <p id="qrMainDescription" class="muted">
-                            Hubungkan WhatsApp ke bot dengan scan QR dari menu Linked Devices.
+                            Connect WhatsApp to the bot by scanning the QR from the Linked Devices menu.
                         </p>
 
                         <div class="qr-steps">
                             <div class="qr-step">
                                 <span>1</span>
-                                <p>Buka <strong>WhatsApp</strong> di HP</p>
+                                <p>Open <strong>WhatsApp</strong> on your phone</p>
                             </div>
                             <div class="qr-step">
                                 <span>2</span>
-                                <p>Masuk ke <strong>Linked Devices</strong></p>
+                                <p>Go to <strong>Linked Devices</strong></p>
                             </div>
                             <div class="qr-step">
                                 <span>3</span>
-                                <p>Pilih <strong>Link a Device</strong> lalu scan QR</p>
+                                <p>Choose <strong>Link a Device</strong> then scan the QR</p>
                             </div>
                         </div>
 
-                        <div id="qrHintBox" class="qr-hint info">Menunggu status bot...</div>
+                        <div id="qrHintBox" class="qr-hint info">Waiting for bot status...</div>
                     </div>
 
                     <div class="qr-card">
@@ -308,12 +320,12 @@
                             <img id="qrImage" alt="QR Code" />
                             <div id="qrTimerContainer" class="qr-timer">
                                 <i class="fas fa-hourglass-half"></i>
-                                <span>Expire dalam <span id="qrTimerCount">60</span> detik</span>
+                                <span>Expires in <span id="qrTimerCount">60</span> seconds</span>
                             </div>
                             <div id="qrEmpty" class="qr-empty">
                                 <div class="qr-empty-icon">📱</div>
-                                <h3 id="qrStateTitle">QR belum tersedia</h3>
-                                <p id="qrStateDescription">Bot sedang menyiapkan koneksi WhatsApp.</p>
+                                <h3 id="qrStateTitle">QR not available yet</h3>
+                                <p id="qrStateDescription">The bot is preparing the WhatsApp connection.</p>
                                 <button id="btnGenerateQr" class="qr-generate-btn">
                                     <i class="fas fa-qrcode"></i> Generate QR Code
                                 </button>
@@ -338,7 +350,7 @@
                         <div>
                             <p class="eyebrow">WhatsApp Device</p>
                             <h2>Connected Device</h2>
-                            <p class="muted">Informasi akun WhatsApp yang sedang terhubung ke bot.</p>
+                            <p class="muted">Information about the WhatsApp account currently connected to the bot.</p>
                         </div>
                         <div id="deviceStatusBadge" class="device-badge disconnected">Not Connected</div>
                     </div>
@@ -347,8 +359,8 @@
                         <div class="device-avatar">📱</div>
 
                         <div class="device-info">
-                            <h3 id="deviceName">Belum ada device connected</h3>
-                            <p id="deviceDescription">Scan QR WhatsApp untuk menghubungkan device ke bot.</p>
+                            <h3 id="deviceName">No device connected yet</h3>
+                            <p id="deviceDescription">Scan the WhatsApp QR to connect a device to the bot.</p>
 
                             <div class="device-meta">
                                 <div>
@@ -381,21 +393,21 @@
                     <div class="section-head">
                         <div>
                             <p class="eyebrow">Manual Message</p>
-                            <h2>Kirim Pesan ke 1 Nomor</h2>
+                            <h2>Send Message to 1 Number</h2>
                         </div>
-                        <span class="hint">Contoh nomor: 6281234567890</span>
+                        <span class="hint">Example number: 6281234567890</span>
                     </div>
 
                     <form id="sendForm" class="form-grid">
                         <label>
-                            Nomor WhatsApp
+                            WhatsApp Number
                             <input id="phoneInput" type="text" placeholder="628xxxxxxxxxx" required />
                         </label>
                         <label>
-                            Pesan
-                            <textarea id="messageInput" rows="4" placeholder="Tulis pesan..." required></textarea>
+                            Message
+                            <textarea id="messageInput" rows="4" placeholder="Write a message..." required></textarea>
                         </label>
-                        <button type="submit">Kirim Pesan</button>
+                        <button type="submit">Send Message</button>
                         <p id="sendFeedback" class="feedback"></p>
                     </form>
                 </section>
@@ -405,16 +417,27 @@
                         <div>
                             <p class="eyebrow">Control</p>
                             <h2>Bot Settings</h2>
-                            <p class="muted settings-subtitle">Atur perilaku bot dan kapasitas log untuk akun ini.</p>
+                            <p class="muted settings-subtitle">Configure bot behavior and log capacity for this account.</p>
                         </div>
-                        <div class="settings-badge"><span>Per Akun</span></div>
+                        <div class="settings-badge"><span>Per Account</span></div>
                     </div>
 
                     <form id="settingsForm" class="settings-grid">
+                        <article class="setting-card setting-card-wide">
+                            <div class="setting-copy">
+                                <h3>Bot Name</h3>
+                                <p>Display name for this account. The account ID cannot be changed.</p>
+                            </div>
+                            <div class="log-limit-box">
+                                <input id="botNameInput" type="text" maxlength="100" placeholder="Bot name" />
+                                <small id="botIdHint" class="muted">ID: -</small>
+                            </div>
+                        </article>
+
                         <article class="setting-card">
                             <div class="setting-copy">
                                 <h3>Ignore Groups</h3>
-                                <p>Bot tidak akan membalas pesan dari grup.</p>
+                                <p>The bot will not reply to messages from groups.</p>
                             </div>
                             <label class="switch">
                                 <input id="ignoreGroupsInput" type="checkbox" />
@@ -425,7 +448,7 @@
                         <article class="setting-card">
                             <div class="setting-copy">
                                 <h3>Ignore Privates</h3>
-                                <p>Bot tidak akan membalas pesan private.</p>
+                                <p>The bot will not reply to private messages.</p>
                             </div>
                             <label class="switch">
                                 <input id="ignorePrivatesInput" type="checkbox" />
@@ -436,7 +459,7 @@
                         <article class="setting-card setting-card-wide">
                             <div class="setting-copy">
                                 <h3>Log Limit</h3>
-                                <p>Maksimal jumlah log yang disimpan di dashboard.</p>
+                                <p>Maximum number of logs stored in the dashboard.</p>
                             </div>
                             <div class="log-limit-box">
                                 <input id="logLimitInput" type="number" min="10" max="1000" step="10" value="100" />
@@ -446,7 +469,7 @@
 
                         <div class="settings-footer">
                             <div class="settings-footer-info">
-                                <strong>Tips:</strong> Perubahan akan langsung dipakai setelah disimpan.
+                                <strong>Tips:</strong> Changes take effect immediately after saving.
                             </div>
                             <button id="saveSettingsButton" type="submit">Save Settings</button>
                         </div>
@@ -482,59 +505,78 @@
                             <h2>Message Logs</h2>
                         </div>
                         <div class="section-actions">
+                            <button id="btnSelectAllLogs" class="button-secondary button-sm" style="display:none">
+                                <i class="fas fa-check-double"></i> Select All
+                            </button>
                             <button id="btnDeleteSelected" class="button-danger button-hidden">
-                                <i class="fas fa-trash-alt"></i> Hapus Terpilih (<span>0</span>)
+                                <i class="fas fa-trash-alt"></i> Delete Selected (<span>0</span>)
                             </button>
                             <button id="clearLogsButton" class="button-danger">Clear Logs</button>
                         </div>
                     </div>
 
                     <p id="logsFeedback" class="feedback"></p>
+                    <div class="acc-filter-bar log-filter-bar">
+                        <div class="acc-search">
+                            <i class="fas fa-search"></i>
+                            <input id="logSearchInput" type="text" placeholder="Search text, number, or type..." />
+                        </div>
+                        <select id="logTypeFilter" class="acc-select">
+                            <option value="">All Types</option>
+                            <option value="incoming">Incoming</option>
+                            <option value="outgoing">Outgoing</option>
+                            <option value="system">System</option>
+                            <option value="error">Error</option>
+                        </select>
+                    </div>
                     <div id="logsList" class="logs"></div>
                 </section>
             </div>
         </section>
     </main>
 
-    <!-- Modal: konfirmasi -->
+    <!-- Modal: confirmation -->
     <div id="confirmModal" class="modal-backdrop" aria-hidden="true">
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
             <div class="modal-icon">🧹</div>
             <div>
-                <h3 id="confirmTitle">Konfirmasi</h3>
-                <p id="confirmMessage">Lanjutkan action ini?</p>
+                <h3 id="confirmTitle">Confirmation</h3>
+                <p id="confirmMessage">Continue with this action?</p>
             </div>
             <div class="modal-actions">
-                <button id="confirmCancelButton" type="button" class="button-secondary">Batal</button>
-                <button id="confirmOkButton" type="button" class="button-danger">Ya</button>
+                <button id="confirmCancelButton" type="button" class="button-secondary">Cancel</button>
+                <button id="confirmOkButton" type="button" class="button-danger">Yes</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal: tambah akun -->
+    <!-- Modal: add account -->
     <div id="addAccountModal" class="modal-backdrop" aria-hidden="true">
         <div class="modal-card" role="dialog" aria-modal="true">
             <div class="modal-icon modal-icon-accent">➕</div>
-            <h3>Tambah Akun WhatsApp</h3>
+            <h3>Add WhatsApp Account</h3>
             <form id="addAccountForm" class="form-grid add-account-form">
                 <label>
-                    ID Akun
-                    <input id="accountIdInput" type="text" placeholder="cs-utama" required
-                        pattern="[a-z0-9][a-z0-9_-]{1,63}" title="huruf kecil/angka/-/_ , 2-64 karakter" />
+                    Bot Name <span class="label-optional">(optional)</span>
+                    <input id="accountNameInput" type="text" placeholder="Main CS" maxlength="100" />
                 </label>
-                <label>
-                    Nama Tampilan
-                    <input id="accountNameInput" type="text" placeholder="CS Utama" />
-                </label>
+                <p class="form-hint">The account ID is generated automatically. The bot name can be changed anytime in the Settings menu.</p>
                 <div class="modal-actions">
-                    <button id="addAccountCancel" type="button" class="button-secondary">Batal</button>
-                    <button type="submit">Buat Akun</button>
+                    <button id="addAccountCancel" type="button" class="button-secondary">Cancel</button>
+                    <button type="submit">Create Account</button>
                 </div>
             </form>
         </div>
     </div>
 
     <div id="toastContainer" class="toast-container"></div>
+
+    <div id="appLoading" class="app-loading">
+        <div class="app-loading-card">
+            <div class="app-loading-spinner"></div>
+            <p>Loading page...</p>
+        </div>
+    </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>

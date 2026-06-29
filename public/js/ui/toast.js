@@ -2,7 +2,7 @@ import { $ } from '../core/dom.js';
 
 const TOAST_DURATION_MS = 2600;
 
-/** Tampilkan toast notifikasi. type: 'info' | 'success' | 'error' | 'warning'. */
+/** Show a notification toast. type: 'info' | 'success' | 'error' | 'warning'. */
 export function showToast(message, type = 'info') {
     const container = $('#toastContainer');
     if (!container) return;

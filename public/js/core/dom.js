@@ -1,4 +1,4 @@
-// Helper DOM kecil yang dipakai di seluruh modul.
+// Small DOM helpers used across all modules.
 
 export const $ = (selector, root = document) => root.querySelector(selector);
 export const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -17,17 +17,17 @@ export function formatDate(value) {
     return new Date(value).toLocaleString('id-ID');
 }
 
-/** Set text aman ke elemen kalau ada (null-safe). */
+/** Safely set text on an element if it exists (null-safe). */
 export function setText(el, text) {
     if (el) el.textContent = text;
 }
 
-/** Set HTML ke elemen kalau ada (null-safe). */
+/** Set HTML on an element if it exists (null-safe). */
 export function setHtml(el, html) {
     if (el) el.innerHTML = html;
 }
 
-/** Tampil/sembunyikan elemen via style.display. */
+/** Show/hide an element via style.display. */
 export function toggle(el, visible, display = 'block') {
     if (el) el.style.display = visible ? display : 'none';
 }

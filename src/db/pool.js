@@ -3,7 +3,7 @@ import { config } from '../config.js';
 
 let pool = null;
 
-/** Ambil connection pool MySQL (dibuat sekali, lazy). */
+/** Get the MySQL connection pool (created once, lazily). */
 export function getPool() {
     if (!pool) {
         pool = mysql.createPool({
@@ -22,7 +22,7 @@ export function getPool() {
     return pool;
 }
 
-/** Jalankan query, kembalikan rows. */
+/** Run a query and return the rows. */
 export async function query(sql, params = []) {
     const [rows] = await getPool().execute(sql, params);
     return rows;

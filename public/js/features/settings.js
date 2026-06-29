@@ -35,7 +35,7 @@ export function renderSettings(settings = {}) {
 }
 
 export function initSettings() {
-    ['#ignoreGroupsInput', '#ignorePrivatesInput', '#logLimitInput'].forEach((selector) => {
+    ['#botNameInput', '#ignoreGroupsInput', '#ignorePrivatesInput', '#logLimitInput'].forEach((selector) => {
         const el = $(selector);
         if (!el) return;
         el.addEventListener('input', markDirty);
@@ -50,11 +50,22 @@ export function initSettings() {
 
         const logLimit = Number($('#logLimitInput')?.value || 100);
         if (logLimit < MIN_LIMIT || logLimit > MAX_LIMIT) {
-            showToast(`Log limit harus antara ${MIN_LIMIT} sampai ${MAX_LIMIT}.`, 'error');
+            showToast(`Log limit must be between ${MIN_LIMIT} and ${MAX_LIMIT}.`, 'error');
+            return;
+        }
+
+        const name = $('#botNameInput')?.value.trim();
+        if (!name) {
+            showToast('Bot name is required.', 'error');
             return;
         }
 
         try {
+            // Rename the bot (if changed) then save settings.
+            const renamed = await api.renameSession(id, name);
+            setText($('#currentAccountName'), renamed.name);
+            setText($('#navAccountName'), renamed.name);
+
             const result = await api.updateSettings(id, {
                 ignoreGroups: $('#ignoreGroupsInput').checked,
                 ignorePrivates: $('#ignorePrivatesInput').checked,
@@ -62,9 +73,9 @@ export function initSettings() {
             });
             renderSettings(result);
             markSaved();
-            showToast(`Settings tersimpan. Log limit: ${result.logLimit}.`, 'success');
+            showToast(`Settings saved for "${renamed.name}".`, 'success');
         } catch (error) {
-            showToast(error.message || 'Gagal update settings.', 'error');
+            showToast(error.message || 'Failed to update settings.', 'error');
         }
     });
 }

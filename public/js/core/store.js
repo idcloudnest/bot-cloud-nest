@@ -1,13 +1,21 @@
-// State sisi client: akun yang sedang dipilih + status/qr akun tersebut.
-// Detail panel hanya menampilkan akun aktif; daftar akun di sidebar pakai
-// payload event 'sessions' langsung.
+// Client-side state: the currently selected account + its status/qr.
+// The detail panel only shows the active account; the sidebar account list uses
+// the 'sessions' event payload directly.
 
 let currentSessionId = null;
 let status = {};
 let qr = null;
-let view = 'detail'; // 'detail' = panel akun terpilih, 'list' = tabel daftar akun
+let view = 'detail'; // 'detail' = selected account panel, 'list' = account list table
+let user = null; // current logged-in user (id, name, email, role)
 
 export const store = {
+    getUser: () => user,
+    setUser(value = null) {
+        user = value;
+        return user;
+    },
+    isSuperadmin: () => user?.role === 'superadmin',
+
     getCurrent: () => currentSessionId,
     setCurrent(id) {
         currentSessionId = id;

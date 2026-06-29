@@ -11,8 +11,10 @@ import { renderLogs, prependLog, removeLogs, initLogs } from './features/logs.js
 import { renderConversations, initConversations } from './features/conversations.js';
 import { renderSettings, initSettings } from './features/settings.js';
 import { initSendMessage } from './features/send-message.js';
+import { initSessionUser } from './features/session-user.js';
 
-// --- Inisialisasi handler interaksi (sekali saat load) ---
+// --- Initialize interaction handlers (once on load) ---
+await initSessionUser();
 initAccounts();
 initAccountTable();
 initDashboard();
@@ -23,11 +25,11 @@ initConversations();
 initSettings();
 initSendMessage();
 
-// Router berbasis hash = satu-satunya sumber kebenaran tampilan.
+// Hash-based router = the single source of truth for the view.
 //   #dashboard / ''      -> dashboard (home)
-//   #accounts            -> daftar akun
-//   #account/<id>        -> detail akun <id>
-//   #overview, #qr, dst. -> anchor section di detail akun yang sedang dibuka
+//   #accounts            -> account list
+//   #account/<id>        -> detail of account <id>
+//   #overview, #qr, etc. -> anchor section in the currently open account detail
 function applyRoute() {
     const raw = window.location.hash.slice(1);
 
@@ -46,7 +48,17 @@ function applyRoute() {
 window.addEventListener('hashchange', applyRoute);
 applyRoute();
 
-// Hanya render kalau event berasal dari akun yang sedang dibuka.
+// Hide the loading screen after the initial view has rendered.
+function hideAppLoading() {
+    const loader = document.getElementById('appLoading');
+    if (!loader) return;
+    loader.classList.add('hide');
+    setTimeout(() => loader.remove(), 400);
+}
+// Give a short delay so the initial data + chart can render, then fade out.
+setTimeout(hideAppLoading, 400);
+
+// Only render if the event comes from the currently open account.
 const forCurrent = (fn) => (payload) => {
     if (payload && store.isCurrent(payload.sessionId)) fn(payload);
 };

@@ -10,7 +10,7 @@ export function renderConversations(conversations = []) {
     if (!conversations.length) {
         table.innerHTML = `
             <tr>
-                <td colspan="4">Belum ada conversation aktif. Akan muncul setelah user chat dan masuk ke flow bot.</td>
+                <td colspan="4">No active conversations yet. They will appear after a user chats and enters a bot flow.</td>
             </tr>`;
         return;
     }
@@ -38,9 +38,9 @@ export function initConversations() {
 
         try {
             await api.resetConversation(id, btn.dataset.jid);
-            // Tabel ter-update otomatis lewat event 'session:conversations'.
+            // The table updates automatically via the 'session:conversations' event.
         } catch (error) {
-            showToast(error.message || 'Gagal reset conversation.', 'error');
+            showToast(error.message || 'Failed to reset conversation.', 'error');
         }
     });
 }

@@ -16,7 +16,7 @@ export function normalizePhoneToJid(phone) {
   const digits = String(phone || '').replace(/\D/g, '');
 
   if (!digits) {
-    throw new Error('Nomor WhatsApp wajib diisi.');
+    throw new Error('WhatsApp number is required.');
   }
 
   let normalized = digits;
@@ -26,7 +26,7 @@ export function normalizePhoneToJid(phone) {
   }
 
   if (!normalized.startsWith('62')) {
-    throw new Error('Gunakan nomor Indonesia, contoh: 6281234567890.');
+    throw new Error('Use an Indonesian number, e.g. 6281234567890.');
   }
 
   return `${normalized}@s.whatsapp.net`;

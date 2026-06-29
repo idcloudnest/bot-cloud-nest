@@ -1,7 +1,7 @@
 import { query } from '../pool.js';
 
-// Menyimpan auth state Baileys (creds + signal keys) sebagai pasangan key/value
-// string per akun. Serialisasi value memakai BufferJSON dilakukan di auth-state.js.
+// Stores Baileys auth state (creds + signal keys) as string key/value pairs
+// per account. Value serialization using BufferJSON is done in auth-state.js.
 
 export async function getValue(sessionId, key) {
     const rows = await query(
@@ -24,12 +24,12 @@ export async function removeValue(sessionId, key) {
     await query('DELETE FROM auth_state WHERE session_id = ? AND data_key = ?', [sessionId, key]);
 }
 
-/** Hapus seluruh auth state akun (dipakai saat logout / QR expired). */
+/** Delete all auth state for an account (used on logout / QR expired). */
 export async function clear(sessionId) {
     await query('DELETE FROM auth_state WHERE session_id = ?', [sessionId]);
 }
 
-/** Cek apakah akun punya creds tersimpan (untuk auto-resume saat startup). */
+/** Check whether an account has stored creds (for auto-resume at startup). */
 export async function hasCreds(sessionId) {
     const rows = await query(
         "SELECT 1 FROM auth_state WHERE session_id = ? AND data_key = 'creds' LIMIT 1",

@@ -4,7 +4,7 @@ import { api } from '../core/api.js';
 import { showToast } from '../ui/toast.js';
 import { openAddAccountModal } from './accounts.js';
 
-// Map status -> label + kelas pill (reuse style pill-* yang sudah ada).
+// Map status -> label + pill class (reuse the existing pill-* styles).
 const STATUS_PILL = {
     connected: { label: 'Connected', cls: 'pill-success' },
     open: { label: 'Connected', cls: 'pill-success' },
@@ -28,7 +28,7 @@ const state = { page: 1, pageSize: 10, search: '', status: '' };
 let searchTimer = null;
 let loading = false;
 
-/** Tampilkan view daftar akun (mode 'list'). */
+/** Show the account list view (mode 'list'). */
 export function showAccountsListView() {
     store.setView('list');
 
@@ -37,19 +37,19 @@ export function showAccountsListView() {
     toggle($('#dashboardView'), false, 'grid');
     toggle($('#accountsListView'), true, 'grid');
 
-    // Sembunyikan status & menu per-akun (tidak relevan di daftar).
+    // Hide per-account status & menu (not relevant in the list).
     toggle($('#statusPill'), false, 'inline-flex');
     toggle($('#statusUpdatedAt'), false, 'flex');
     toggle($('#btnDeleteAccount'), false, 'inline-flex');
     toggle($('#accountIdLine'), false, 'block');
     toggle($('#accountMenu'), false, 'grid');
-    setText($('#currentAccountName'), 'Daftar Akun');
+    setText($('#currentAccountName'), 'Account List');
 
     state.page = 1;
     loadAccountTable();
 }
 
-/** Muat ulang data tabel sesuai filter & halaman aktif (hanya saat view list). */
+/** Reload table data based on the active filter & page (only in list view). */
 export async function refreshAccountTable() {
     if (store.getView() !== 'list') return;
     loadAccountTable();
@@ -59,7 +59,8 @@ async function loadAccountTable() {
     if (loading) return;
     loading = true;
     const tbody = $('#accountsTable');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="acc-table-empty">Memuat...</td></tr>';
+    const colCount = store.isSuperadmin() ? 6 : 5;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="${colCount}" class="acc-table-empty">Loading...</td></tr>`;
 
     try {
         const { data, pagination } = await api.paginateSessions(state);
@@ -68,9 +69,9 @@ async function loadAccountTable() {
         renderPagination(pagination);
     } catch (error) {
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="5" class="acc-table-empty">${escapeHtml(error.message || 'Gagal memuat data.')}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="${colCount}" class="acc-table-empty">${escapeHtml(error.message || 'Failed to load data.')}</td></tr>`;
         }
-        showToast(error.message || 'Gagal memuat daftar akun.', 'error');
+        showToast(error.message || 'Failed to load account list.', 'error');
     } finally {
         loading = false;
     }
@@ -80,14 +81,21 @@ function renderRows(rows = []) {
     const tbody = $('#accountsTable');
     if (!tbody) return;
 
+    const showOwner = store.isSuperadmin();
+    const colCount = showOwner ? 6 : 5;
+
+    // Show/hide the Owner column header to match the rows.
+    toggle($('#accOwnerCol'), showOwner, 'table-cell');
+
     if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="5" class="acc-table-empty">Tidak ada akun yang cocok.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${colCount}" class="acc-table-empty">No matching accounts.</td></tr>`;
         return;
     }
 
     tbody.innerHTML = rows
         .map((s) => {
             const pill = statusPill(s.status);
+            const ownerCell = showOwner ? `<td>${ownerLabel(s.owner)}</td>` : '';
             return `
             <tr>
                 <td>
@@ -97,11 +105,12 @@ function renderRows(rows = []) {
                     </div>
                 </td>
                 <td><code>${escapeHtml(s.id)}</code></td>
+                ${ownerCell}
                 <td><span class="pill ${pill.cls}">${escapeHtml(pill.label)}</span></td>
                 <td>${escapeHtml(formatDate(s.status?.updatedAt))}</td>
                 <td>
                     <button class="button-secondary button-sm acc-open" data-id="${escapeHtml(s.id)}">
-                        <i class="fas fa-arrow-right"></i> Buka
+                        <i class="fas fa-arrow-right"></i> Open
                     </button>
                 </td>
             </tr>`;
@@ -109,12 +118,27 @@ function renderRows(rows = []) {
         .join('');
 }
 
+/** Render the owner name/email as a small chip, or an "unassigned" hint. */
+function ownerLabel(owner) {
+    if (!owner) return '<span class="acc-owner acc-owner-none">Unassigned</span>';
+    const name = owner.name || owner.email || owner.id;
+    const email = owner.email && owner.email !== name ? owner.email : '';
+    return `
+        <span class="acc-owner" title="${escapeHtml(owner.email || name)}">
+            <i class="fas fa-user"></i>
+            <span class="acc-owner-text">
+                <strong>${escapeHtml(name)}</strong>
+                ${email ? `<small>${escapeHtml(email)}</small>` : ''}
+            </span>
+        </span>`;
+}
+
 function renderPagination({ page, pageSize, total, totalPages }) {
     const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
     const end = Math.min(page * pageSize, total);
 
-    setText($('#accTableInfo'), `Menampilkan ${start}-${end} dari ${total} akun`);
-    setText($('#accPageInfo'), `Halaman ${page} / ${totalPages}`);
+    setText($('#accTableInfo'), `Showing ${start}-${end} of ${total} accounts`);
+    setText($('#accPageInfo'), `Page ${page} / ${totalPages}`);
 
     const prev = $('#accPrevPage');
     const next = $('#accNextPage');
@@ -159,7 +183,7 @@ export function initAccountTable() {
         loadAccountTable();
     });
 
-    // Klik "Buka" -> pindah ke detail akun (lewat hash, router yang menangani).
+    // Click "Open" -> go to the account detail (via hash, handled by the router).
     $('#accountsTable')?.addEventListener('click', (event) => {
         const btn = event.target.closest('.acc-open');
         if (!btn) return;

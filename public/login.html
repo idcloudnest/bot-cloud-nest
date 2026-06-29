@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign in · WA Bot Console</title>
+    <link rel="icon" href="/cloudnest.png" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="auth-body">
+    <main class="auth-shell">
+        <div class="auth-card">
+            <div class="auth-brand">
+                <img src="/cloudnest.png" alt="Cloud Nest" />
+                <div>
+                    <h1>WA Bot Console</h1>
+                    <p class="muted">Cloud Nest Bot</p>
+                </div>
+            </div>
+
+            <div class="auth-tabs">
+                <button id="tabLogin" class="auth-tab is-active" type="button">Sign In</button>
+                <button id="tabRegister" class="auth-tab" type="button">Register</button>
+            </div>
+
+            <p id="authError" class="auth-error" hidden></p>
+
+            <!-- Login form -->
+            <form id="loginForm" class="auth-form">
+                <label>
+                    Email
+                    <input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com" required />
+                </label>
+                <label>
+                    Password
+                    <input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••" required />
+                </label>
+                <button type="submit" class="auth-submit">Sign In</button>
+            </form>
+
+            <!-- Register form -->
+            <form id="registerForm" class="auth-form" hidden>
+                <label>
+                    Name
+                    <input id="regName" type="text" autocomplete="name" placeholder="Your name" />
+                </label>
+                <label>
+                    Email
+                    <input id="regEmail" type="email" autocomplete="email" placeholder="you@example.com" required />
+                </label>
+                <label>
+                    Password
+                    <input id="regPassword" type="password" autocomplete="new-password" placeholder="At least 6 characters" required />
+                </label>
+                <button type="submit" class="auth-submit">Create Account</button>
+            </form>
+
+            <div id="googleWrap" class="auth-google" hidden>
+                <div class="auth-divider"><span>or</span></div>
+                <div id="googleBtn"></div>
+            </div>
+        </div>
+        <p class="auth-footnote muted">Each WhatsApp bot is private to its owner. A superadmin can manage all of them.</p>
+    </main>
+
+    <script src="/js/auth/login.js" type="module"></script>
+</body>
+</html>

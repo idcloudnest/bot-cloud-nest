@@ -2,8 +2,8 @@ import { initAuthCreds, BufferJSON, proto } from '@whiskeysockets/baileys';
 import * as authRepo from '../db/repositories/auth.repo.js';
 
 /**
- * Auth state Baileys yang disimpan di MySQL (pengganti useMultiFileAuthState).
- * Setiap akun (sessionId) punya creds + signal keys sendiri di tabel auth_state.
+ * Baileys auth state stored in MySQL (replacement for useMultiFileAuthState).
+ * Each account (sessionId) has its own creds + signal keys in the auth_state table.
  */
 export async function useMySQLAuthState(sessionId) {
     const writeData = (key, data) =>

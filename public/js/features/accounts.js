@@ -6,7 +6,7 @@ import { showConfirmModal } from '../ui/modal.js';
 
 import { renderStatus } from './status.js';
 import { renderSettings } from './settings.js';
-import { renderLogs } from './logs.js';
+import { renderLogs, resetLogFilter } from './logs.js';
 import { renderConversations } from './conversations.js';
 
 const DOT_VARIANT = {
@@ -22,12 +22,12 @@ function dotVariant(status = {}) {
 
 let knownIds = [];
 
-// --- Sinkronisasi daftar akun (dipakai untuk auto-select & menu sidebar) ---
+// --- Account list sync (used for auto-select & sidebar menu) ---
 
 export function renderAccountList(sessions = []) {
     knownIds = sessions.map((s) => s.id);
 
-    // Akun aktif terhapus -> kembali ke daftar.
+    // Active account was deleted -> go back to the list.
     const current = store.getCurrent();
     if (current && !knownIds.includes(current)) {
         store.setCurrent(null);
@@ -39,7 +39,7 @@ export function renderAccountList(sessions = []) {
     updateAccountMenu(sessions);
 }
 
-/** Update grup menu "Akun aktif" di sidebar (hanya tampil di view detail). */
+/** Update the "Active account" menu group in the sidebar (only shown in detail view). */
 function updateAccountMenu(sessions = []) {
     const menu = $('#accountMenu');
     const current = sessions.find((s) => s.id === store.getCurrent());
@@ -53,12 +53,12 @@ function updateAccountMenu(sessions = []) {
     }
 }
 
-/** ID akun yang diketahui (dipakai modul tabel daftar akun). */
+/** Known account IDs (used by the account list table module). */
 export function getKnownIds() {
     return knownIds;
 }
 
-/** Kembali ke tampilan detail akun dari tampilan daftar. */
+/** Return to the account detail view from the list view. */
 export function ensureDetailView() {
     if (store.getView() !== 'list') return;
     store.setView('detail');
@@ -73,7 +73,7 @@ function showAccountView(visible) {
     toggle($('#accountView'), visible, 'grid');
     toggle($('#emptyState'), !visible, 'grid');
 
-    // Topbar status & aksi hanya relevan saat ada akun terpilih.
+    // Topbar status & actions are only relevant when an account is selected.
     toggle($('#statusPill'), visible, 'inline-flex');
     toggle($('#statusUpdatedAt'), visible, 'flex');
     toggle($('#btnDeleteAccount'), visible, 'inline-flex');
@@ -85,7 +85,7 @@ function showAccountView(visible) {
     }
 }
 
-// --- Pilih akun + muat snapshot ---
+// --- Select account + load snapshot ---
 
 export async function selectSession(id) {
     store.setCurrent(id);
@@ -98,28 +98,33 @@ export async function selectSession(id) {
         setText($('#currentAccountName'), snap.name);
         setText($('#currentAccountId'), snap.id);
         setText($('#navAccountName'), snap.name);
+        // Fill the rename field in Settings.
+        const nameInput = $('#botNameInput');
+        if (nameInput) nameInput.value = snap.name || '';
+        setText($('#botIdHint'), `ID: ${snap.id}`);
         const dot = $('#navAccountDot');
         if (dot) dot.className = `nav-account-dot dot-${dotVariant(snap.status)}`;
         store.setQr(snap.qr || null);
         renderStatus(snap.status || {});
         renderSettings(snap.settings || {});
+        resetLogFilter();
         renderLogs(snap.logs || []);
         renderConversations(snap.conversations || []);
     } catch (error) {
-        showToast(error.message || 'Gagal memuat akun.', 'error');
+        showToast(error.message || 'Failed to load account.', 'error');
         store.setCurrent(null);
         window.location.hash = '#accounts';
     }
 }
 
-// --- Init: tambah & hapus akun ---
+// --- Init: add & delete account ---
 
 function openAddModal(open) {
     const modal = $('#addAccountModal');
     if (!modal) return;
     modal.classList.toggle('is-open', open);
     modal.setAttribute('aria-hidden', String(!open));
-    if (open) setTimeout(() => $('#accountIdInput')?.focus(), 80);
+    if (open) setTimeout(() => $('#accountNameInput')?.focus(), 80);
 }
 
 export function openAddAccountModal() {
@@ -136,17 +141,16 @@ export function initAccounts() {
 
     $('#addAccountForm')?.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const id = $('#accountIdInput').value.trim().toLowerCase();
-        const name = $('#accountNameInput').value.trim() || id;
+        const name = $('#accountNameInput').value.trim();
 
         try {
-            const session = await api.createSession(id, name);
+            const session = await api.createSession(name);
             openAddModal(false);
             $('#addAccountForm').reset();
-            showToast(`Akun "${session.name}" dibuat.`, 'success');
+            showToast(`Account "${session.name}" created (ID: ${session.id}).`, 'success');
             window.location.hash = `#account/${encodeURIComponent(session.id)}`;
         } catch (error) {
-            showToast(error.message || 'Gagal membuat akun.', 'error');
+            showToast(error.message || 'Failed to create account.', 'error');
         }
     });
 
@@ -155,9 +159,9 @@ export function initAccounts() {
         if (!id) return;
 
         const confirmed = await showConfirmModal({
-            title: 'Hapus Akun?',
-            message: `Akun "${id}" beserta sesi WhatsApp, log, dan percakapannya akan dihapus permanen. Lanjutkan?`,
-            confirmText: 'Ya, Hapus',
+            title: 'Delete Account?',
+            message: `Account "${id}" along with its WhatsApp session, logs, and conversations will be permanently deleted. Continue?`,
+            confirmText: 'Yes, Delete',
         });
         if (!confirmed) return;
 
@@ -165,10 +169,10 @@ export function initAccounts() {
             await api.deleteSession(id);
             store.setCurrent(null);
             window.location.hash = '#accounts';
-            showToast('Akun dihapus.', 'success');
-            // Daftar akan ter-refresh via event 'sessions'.
+            showToast('Account deleted.', 'success');
+            // The list will refresh via the 'sessions' event.
         } catch (error) {
-            showToast(error.message || 'Gagal menghapus akun.', 'error');
+            showToast(error.message || 'Failed to delete account.', 'error');
         }
     });
 }

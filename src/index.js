@@ -1,16 +1,20 @@
 import { startWebServer } from './web/server.js';
 import { migrate } from './db/migrate.js';
+import { seedSuperadmin } from './web/auth.js';
 import { resumeSessions } from './whatsapp/session-manager.js';
 import { logger } from './utils/logger.js';
 
 async function main() {
-    // 1. Siapkan database (buat tabel bila belum ada).
+    // 1. Prepare the database (create tables if they don't exist yet).
     await migrate();
 
-    // 2. Jalankan web server + dashboard.
+    // 2. Ensure a superadmin account exists (seeded from env).
+    await seedSuperadmin();
+
+    // 3. Start the web server + dashboard.
     startWebServer();
 
-    // 3. Resume akun yang sudah punya sesi WhatsApp tersimpan.
+    // 4. Resume accounts that already have a stored WhatsApp session.
     await resumeSessions();
 }
 

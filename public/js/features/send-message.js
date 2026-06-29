@@ -13,14 +13,14 @@ export function initSendMessage() {
         if (!id) return;
 
         const feedback = $('#sendFeedback');
-        setText(feedback, 'Mengirim...');
+        setText(feedback, 'Sending...');
 
         try {
             const result = await api.sendMessage(id, $('#phoneInput').value, $('#messageInput').value);
-            setText(feedback, `Pesan terkirim ke ${result.jid}`);
+            setText(feedback, `Message sent to ${result.jid}`);
             $('#messageInput').value = '';
         } catch (error) {
-            setText(feedback, error.message || 'Gagal mengirim pesan.');
+            setText(feedback, error.message || 'Failed to send message.');
         }
     });
 }

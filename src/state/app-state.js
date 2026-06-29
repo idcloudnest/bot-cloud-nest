@@ -4,7 +4,7 @@ import * as sessionRepo from '../db/repositories/session.repo.js';
 import * as logRepo from '../db/repositories/log.repo.js';
 import * as conversationRepo from '../db/repositories/conversation.repo.js';
 
-// State ephemeral per akun (tidak perlu persist): QR aktif + cache log limit.
+// Ephemeral per-account state (no need to persist): active QR + cached log limit.
 const runtime = new Map();
 
 function rt(sessionId) {
@@ -22,11 +22,11 @@ export function setLogLimit(sessionId, limit) {
     rt(sessionId).logLimit = Number(limit) || config.logLimit;
 }
 
-// --- Daftar akun ---
+// --- Account list ---
 
 export async function emitSessionsList() {
     const sessions = await sessionRepo.list();
-    // Sisipkan QR aktif (in-memory) ke tiap akun.
+    // Inject the active (in-memory) QR into each account.
     const withQr = sessions.map((s) => ({ ...s, qr: rt(s.id).qr }));
     bus.emit(EVENTS.SESSIONS, withQr);
     return withQr;
@@ -56,7 +56,7 @@ export function getQr(sessionId) {
     return rt(sessionId).qr;
 }
 
-// --- Settings (per akun, kolom di tabel sessions) ---
+// --- Settings (per account, columns in the sessions table) ---
 
 export async function updateSettings(sessionId, payload = {}) {
     const session = await sessionRepo.updateSettings(sessionId, payload);
@@ -80,8 +80,12 @@ export async function addLog(sessionId, type, payload = {}, jid = null) {
     return log;
 }
 
-export async function getLogs(sessionId, limit) {
-    return logRepo.list(sessionId, limit ?? rt(sessionId).logLimit);
+export async function getLogs(sessionId, opts = {}) {
+    const limit = opts.limit ?? rt(sessionId).logLimit;
+    if (opts.type || opts.search) {
+        return logRepo.search(sessionId, { type: opts.type, search: opts.search, limit });
+    }
+    return logRepo.list(sessionId, limit);
 }
 
 export async function clearLogs(sessionId) {

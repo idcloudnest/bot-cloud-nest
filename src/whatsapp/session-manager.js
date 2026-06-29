@@ -1,4 +1,5 @@
 import makeWASocket, { DisconnectReason } from '@whiskeysockets/baileys';
+import { randomBytes } from 'node:crypto';
 import pino from 'pino';
 import QRCode from 'qrcode';
 
@@ -15,14 +16,23 @@ import {
 import * as sessionRepo from '../db/repositories/session.repo.js';
 import * as authRepo from '../db/repositories/auth.repo.js';
 import { logger } from '../utils/logger.js';
+import { config } from '../config.js';
 
-const QR_TIMEOUT_MS = 60_000;
+const QR_TIMEOUT_MS = config.qrTimeoutMs;
 const RECONNECT_DELAY_MS = 2_000;
 const RESTART_DELAY_MS = 300;
 const SESSION_ID_RE = /^[a-z0-9][a-z0-9_-]{1,63}$/;
 
-// State koneksi hidup per akun: { sock, isStarting, clearAuth, + flag per-attempt }.
+// Live connection state per account: { sock, isStarting, clearAuth, + per-attempt flags }.
 const connections = new Map();
+
+// Cache of bot -> owner user id, used to route realtime events to the right user.
+const sessionOwners = new Map();
+
+/** Owner user id of a bot (null if unknown/unowned). Used for socket event routing. */
+export function getSessionOwner(sessionId) {
+    return sessionOwners.get(sessionId) ?? null;
+}
 
 function conn(sessionId) {
     if (!connections.has(sessionId)) {
@@ -35,30 +45,77 @@ export function getSocket(sessionId) {
     return connections.get(sessionId)?.sock || null;
 }
 
-export function listSessions() {
-    return sessionRepo.list();
+export function listSessions(ownerId = null) {
+    return sessionRepo.list(ownerId);
 }
 
 // --- Lifecycle ---
 
-export async function createSession({ id, name }) {
-    const cleanId = String(id || '').trim().toLowerCase();
+/** Build a slug id from a name. Return '' if the result is < 2 characters (fallback needed). */
+function slugifyId(text) {
+    const slug = String(text || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 24);
+    return slug.length >= 2 ? slug : '';
+}
+
+/**
+ * Generate a unique id automatically: prefix from the name (if any) + a long random token.
+ * A 12 hex char token makes duplicates very unlikely; still checked against the DB.
+ */
+async function generateUniqueId(name) {
+    const base = slugifyId(name) || 'wa';
+    let candidate = `${base}-${randomBytes(6).toString('hex')}`; // 12 hex chars
+    let tries = 0;
+    while (await sessionRepo.exists(candidate)) {
+        candidate = `${base}-${randomBytes(6).toString('hex')}`;
+        if (++tries > 20) {
+            candidate = `${base}-${Date.now().toString(36)}${randomBytes(4).toString('hex')}`;
+            break;
+        }
+    }
+    return candidate;
+}
+
+export async function createSession({ id, name, ownerId = null } = {}) {
+    const cleanName = String(name || '').trim();
+
+    // Auto-generate ID if not provided.
+    const cleanId = id
+        ? String(id).trim().toLowerCase()
+        : await generateUniqueId(cleanName);
+
     if (!SESSION_ID_RE.test(cleanId)) {
-        throw new Error('ID akun tidak valid. Gunakan huruf kecil/angka/-/_ (2-64 karakter).');
+        throw new Error('Invalid account ID. Use lowercase letters/digits/-/_ (2-64 characters).');
     }
     if (await sessionRepo.exists(cleanId)) {
-        throw new Error(`Akun "${cleanId}" sudah ada.`);
+        throw new Error(`Account "${cleanId}" already exists.`);
     }
 
-    const session = await sessionRepo.create({ id: cleanId, name: String(name || cleanId).trim() });
+    const session = await sessionRepo.create({ id: cleanId, name: cleanName || cleanId, ownerId });
+    sessionOwners.set(cleanId, session.ownerId);
     setLogLimit(cleanId, session.settings.logLimit);
     await emitSessionsList();
     return session;
 }
 
+/** Change the bot display name (does not change the id). */
+export async function renameSession(sessionId, name) {
+    const cleanName = String(name || '').trim();
+    if (!cleanName) throw new Error('Bot name is required.');
+    if (cleanName.length > 100) throw new Error('Bot name must be at most 100 characters.');
+
+    const updated = await sessionRepo.updateName(sessionId, cleanName);
+    if (!updated) throw new Error(`Account "${sessionId}" not found.`);
+    await emitSessionsList();
+    return updated;
+}
+
 export async function startSession(sessionId) {
     const session = await sessionRepo.get(sessionId);
-    if (!session) throw new Error(`Akun "${sessionId}" tidak ditemukan.`);
+    if (!session) throw new Error(`Account "${sessionId}" not found.`);
 
     const c = conn(sessionId);
     if (c.isStarting) return c.sock;
@@ -66,7 +123,7 @@ export async function startSession(sessionId) {
 
     setLogLimit(sessionId, session.settings.logLimit);
 
-    // Flag per-attempt koneksi.
+    // Per-attempt connection flags.
     let isConnectedYet = false;
     let qrExpireAt = null;
     let forceKillTimeout = null;
@@ -117,11 +174,11 @@ export async function startSession(sessionId) {
         c.isStarting = false;
     }
 
-    // --- Handler internal (closure atas flag per-attempt) ---
+    // --- Internal handlers (closures over per-attempt flags) ---
 
     async function handleQrUpdate(qr) {
-        // Sudah lewat batas waktu: jangan tampilkan QR baru (mencegah QR "muncul
-        // lagi" setelah timer di UI habis). Langsung hentikan sesi.
+        // Past the timeout: don't show a new QR (prevents the QR from "reappearing"
+        // after the UI timer runs out). Stop the session right away.
         if (qrExpireAt && Date.now() >= qrExpireAt) {
             if (!isConnectedYet && c.sock) {
                 isTimeoutReached = true;
@@ -132,7 +189,7 @@ export async function startSession(sessionId) {
 
         if (!qrExpireAt) {
             qrExpireAt = Date.now() + QR_TIMEOUT_MS;
-            await addLog(sessionId, 'system', { text: '📱 QR Code berhasil di-generate. Silakan scan melalui WhatsApp.' });
+            await addLog(sessionId, 'system', { text: '📱 QR Code generated successfully. Please scan it via WhatsApp.' });
 
             forceKillTimeout = setTimeout(() => {
                 if (!isConnectedYet && c.sock) {
@@ -143,7 +200,7 @@ export async function startSession(sessionId) {
         }
 
         const qrDataUrl = await QRCode.toDataURL(qr);
-        setQr(sessionId, { qr, qrDataUrl, expireAt: qrExpireAt, updatedAt: new Date().toISOString() });
+        setQr(sessionId, { qr, qrDataUrl, expireAt: qrExpireAt, timeoutMs: QR_TIMEOUT_MS, updatedAt: new Date().toISOString() });
         await setStatus(sessionId, { connection: 'qr', connected: false, message: 'Waiting for QR scan' });
     }
 
@@ -171,7 +228,7 @@ export async function startSession(sessionId) {
     }
 
     async function handleConnectionClose(lastDisconnect) {
-        const hadActiveQr = Boolean(qrExpireAt); // QR sempat ditampilkan pada attempt ini
+        const hadActiveQr = Boolean(qrExpireAt); // QR was shown during this attempt
         qrExpireAt = null;
         if (forceKillTimeout) clearTimeout(forceKillTimeout);
 
@@ -182,34 +239,37 @@ export async function startSession(sessionId) {
         const errorMessage = lastDisconnect?.error?.message || `Closed with status ${statusCode}`;
 
         c.sock = null;
-        setQr(sessionId, null);
 
-        // 515: dikirim WhatsApp tepat setelah QR berhasil di-scan (pairing selesai).
-        // Normal — socket WAJIB di-restart untuk membuka sesi yang terautentikasi.
+        // 515: sent by WhatsApp right after the QR is successfully scanned (pairing done).
+        // Normal — the socket MUST be restarted to open the authenticated session.
         const isRestartRequired = statusCode === DisconnectReason.restartRequired; // 515
-        // QR ditampilkan tapi tidak pernah konek -> QR tidak di-scan / kedaluwarsa.
-        // Mencakup loggedOut/timedOut/408/force-kill: semua berarti QR expired di sini.
+        // QR was shown but never connected -> QR not scanned / expired.
+        // Covers loggedOut/timedOut/408/force-kill: all mean QR expired here.
         const isQrExpired = !isRestartRequired && !isConnectedYet && (hadActiveQr || isTimeoutReached);
         const isLoggedOut = statusCode === DisconnectReason.loggedOut;
         const shouldReconnect = !isRestartRequired && !isQrExpired && !isLoggedOut;
 
         if (isRestartRequired) {
-            await setStatus(sessionId, { connection: 'connecting', connected: false, message: 'QR ter-scan, menyelesaikan login...' });
-            await addLog(sessionId, 'system', { text: '🔄 QR berhasil di-scan. Menyambungkan sesi...' });
+            await setStatus(sessionId, { connection: 'connecting', connected: false, message: 'QR scanned, completing login...' });
+            await addLog(sessionId, 'system', { text: '🔄 QR scanned successfully. Connecting session...' });
             setTimeout(() => startSession(sessionId).catch((e) => logger.error(e, 'restart after pairing failed')), RESTART_DELAY_MS);
         } else if (isQrExpired) {
-            await setStatus(sessionId, { connection: 'idle', connected: false, message: 'QR Code Kadaluarsa', lastError: errorMessage });
-            await addLog(sessionId, 'system', { text: '⏱️ Waktu scan QR habis. Bot disetop, silakan generate ulang.' });
+            await setStatus(sessionId, { connection: 'idle', connected: false, message: 'QR Code Expired', lastError: errorMessage });
+            await addLog(sessionId, 'system', { text: '⏱️ QR scan time is up. Bot stopped, please generate a new one.' });
             await authRepo.clear(sessionId);
         } else if (isLoggedOut) {
-            await setStatus(sessionId, { connection: 'idle', connected: false, message: 'Sesi kosong. Silakan klik Generate QR.' });
-            await addLog(sessionId, 'system', { text: 'Session logged out. Menyiapkan untuk QR baru...' });
+            await setStatus(sessionId, { connection: 'idle', connected: false, message: 'Session is empty. Click Generate QR to start.' });
+            await addLog(sessionId, 'system', { text: 'Session logged out. Preparing for a new QR...' });
             await authRepo.clear(sessionId);
         } else if (shouldReconnect) {
             await setStatus(sessionId, { connection: 'reconnecting', connected: false, message: 'Reconnecting...', lastError: errorMessage });
-            await addLog(sessionId, 'error', { text: `❌ Terputus: ${errorMessage}. Mencoba reconnect otomatis...` });
+            await addLog(sessionId, 'error', { text: `❌ Disconnected: ${errorMessage}. Trying to reconnect automatically...` });
             setTimeout(() => startSession(sessionId).catch((e) => logger.error(e, 'reconnect failed')), RECONNECT_DELAY_MS);
         }
+
+        // Clear the QR AFTER the status is set, so the UI never renders a "qr"
+        // state without an image ("QR not available yet") between two events.
+        setQr(sessionId, null);
     }
 }
 
@@ -219,7 +279,7 @@ export async function restartSession(sessionId) {
         await startSession(sessionId);
         return;
     }
-    await addLog(sessionId, 'system', { text: '🔄 Manual restart triggered by user. Merestart koneksi...' });
+    await addLog(sessionId, 'system', { text: '🔄 Manual restart triggered by user. Restarting connection...' });
     c.sock.ws.close();
 }
 
@@ -229,7 +289,7 @@ export async function logoutSession(sessionId) {
         try {
             await c.sock.logout();
         } catch {
-            // Mungkin sudah terputus; lanjut bersihkan saja.
+            // Might already be disconnected; just continue cleaning up.
         }
     }
     if (c?.clearAuth) await c.clearAuth();
@@ -242,7 +302,7 @@ export async function logoutSession(sessionId) {
 
 export async function sendMessage(sessionId, jid, text) {
     const sock = getSocket(sessionId);
-    if (!sock) throw new Error('Socket belum siap. Pastikan akun sudah terhubung.');
+    if (!sock) throw new Error('Socket is not ready. Make sure the account is connected.');
     await sock.sendMessage(jid, { text });
     await addLog(sessionId, 'outgoing', { text }, jid);
 }
@@ -253,19 +313,21 @@ export async function deleteSession(sessionId) {
         try {
             c.sock.ws.close();
         } catch {
-            // abaikan
+            // ignore
         }
     }
     connections.delete(sessionId);
+    sessionOwners.delete(sessionId);
     dropRuntime(sessionId);
-    await sessionRepo.remove(sessionId); // cascade hapus auth_state/logs/conversations
+    await sessionRepo.remove(sessionId); // cascade deletes auth_state/logs/conversations
     await emitSessionsList();
 }
 
-/** Saat startup: jalankan ulang akun yang punya creds tersimpan. */
+/** On startup: restart accounts that have stored creds. */
 export async function resumeSessions() {
     const sessions = await sessionRepo.list();
     for (const session of sessions) {
+        sessionOwners.set(session.id, session.ownerId);
         setLogLimit(session.id, session.settings.logLimit);
         if (await authRepo.hasCreds(session.id)) {
             startSession(session.id).catch((e) => logger.error(e, `resume ${session.id} failed`));
@@ -273,7 +335,7 @@ export async function resumeSessions() {
             await setStatus(session.id, {
                 connection: 'idle',
                 connected: false,
-                message: 'Bot standby. Silakan klik Generate QR.',
+                message: 'Bot standby. Click Generate QR to start.',
             });
         }
     }

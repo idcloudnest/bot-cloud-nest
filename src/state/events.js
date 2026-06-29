@@ -1,12 +1,12 @@
 import { EventEmitter } from 'node:events';
 
-// Bus event tunggal untuk seluruh aplikasi. Web server men-subscribe
-// dan meneruskan ke client lewat Socket.IO. Semua payload membawa sessionId.
+// Single event bus for the whole application. The web server subscribes
+// and forwards to clients via Socket.IO. Every payload carries a sessionId.
 export const bus = new EventEmitter();
 bus.setMaxListeners(50);
 
 export const EVENTS = {
-    SESSIONS: 'sessions',                 // daftar akun berubah -> Session[]
+    SESSIONS: 'sessions',                 // account list changed -> Session[]
     STATUS: 'session:status',             // { sessionId, status }
     QR: 'session:qr',                     // { sessionId, qr }
     SETTINGS: 'session:settings',         // { sessionId, settings }

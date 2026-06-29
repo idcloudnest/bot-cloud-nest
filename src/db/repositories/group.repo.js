@@ -51,6 +51,15 @@ export async function isBlacklisted(sessionId, groupJid, userJid) {
     return rows.length > 0;
 }
 
+/** All blacklisted users in a group: [{ userJid, reason, createdAt }]. */
+export async function listBlacklist(sessionId, groupJid) {
+    const rows = await query(
+        'SELECT user_jid, reason, created_at FROM group_blacklist WHERE session_id = ? AND group_jid = ? ORDER BY created_at ASC',
+        [sessionId, groupJid],
+    );
+    return rows.map((r) => ({ userJid: r.user_jid, reason: r.reason, createdAt: r.created_at }));
+}
+
 export async function removeBlacklist(sessionId, groupJid, userJid) {
     const rows = await query(
         'DELETE FROM group_blacklist WHERE session_id = ? AND group_jid = ? AND user_jid = ?',

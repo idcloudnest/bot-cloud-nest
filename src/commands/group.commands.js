@@ -23,6 +23,31 @@ function withMentions(text, jids = []) {
     return { text, mentions: jids };
 }
 
+/** Only the digits of a string ("+62 812-3456" -> "62812345"). */
+function digitsOf(s) {
+    return String(s || '').replace(/\D/g, '');
+}
+
+/** Normalize a number/jid to a comparable form (leading 0 -> 62). */
+function canonicalNumber(s) {
+    let d = digitsOf(String(s).split('@')[0]);
+    if (d.startsWith('0')) d = `62${d.slice(1)}`;
+    return d;
+}
+
+/** Render the group blacklist as a numbered list of phone numbers + reason. */
+function blacklistText(listed = []) {
+    let text = `╭─── ୨୧ *DAFTAR BLOKIR* ୨୧\n│\n│  ${listed.length} member diblokir\n│`;
+    listed.forEach((b, idx) => {
+        const num = digitsOf(b.userJid.split('@')[0]);
+        const n = String(idx + 1).padStart(2, '0');
+        text += `\n│ ${n}. +${num}`;
+        if (b.reason) text += `\n│     _${b.reason}_`;
+    });
+    text += `\n│\n╰─── ⋆｡˚ Cloud Nest Bot ⋆｡˚`;
+    return text;
+}
+
 /** Targets that are safe to act on (not the bot, not group admins). */
 function actionableTargets(ctx) {
     const targets = ctx.targets.filter((t) => t !== ctx.botJid);
@@ -171,21 +196,55 @@ const unblacklist = {
     feature: 'group',
     groupOnly: true,
     adminOnly: true,
-    usage: '.unbl @user',
-    desc: 'Hapus member dari daftar blokir grup',
+    usage: '.unbl <nomor / @user>',
+    desc: 'Lepas member dari daftar blokir grup',
     async handler(ctx) {
-        const targets = ctx.targets;
-        if (!targets.length) return 'Tag member yang mau dilepas dari daftar blokir.\nContoh: *.unbl @user*';
-        const target = targets[0];
-        const removed = await groupRepo.removeBlacklist(ctx.sessionId, ctx.jid, target);
-        return withMentions(
-            removed ? `✅ ${mentionTag(target)} dilepas dari daftar blokir.` : `${mentionTag(target)} tidak ada di daftar blokir.`,
-            [target],
-        );
+        const listed = await groupRepo.listBlacklist(ctx.sessionId, ctx.jid);
+
+        // Resolve the target: a mention/reply, otherwise a typed phone number.
+        let targetJid = ctx.targets[0] || null;
+
+        if (!targetJid) {
+            const numArg = ctx.args.find((a) => digitsOf(a).length >= 5);
+            if (!numArg) {
+                // No target given -> show the blacklist so the admin can pick a number.
+                return listed.length
+                    ? `${blacklistText(listed)}\n\nLepas blokir: *.unbl <nomor>*\nContoh: *.unbl 6281234567890*`
+                    : 'Daftar blokir grup ini kosong ✅';
+            }
+            const typed = canonicalNumber(numArg);
+            const match = listed.find((b) => canonicalNumber(b.userJid) === typed);
+            if (!match) {
+                return `Nomor *${digitsOf(numArg)}* tidak ada di daftar blokir.\n\n${listed.length ? blacklistText(listed) : ''}`.trim();
+            }
+            targetJid = match.userJid;
+        }
+
+        const removed = await groupRepo.removeBlacklist(ctx.sessionId, ctx.jid, targetJid);
+        await groupRepo.resetWarning(ctx.sessionId, ctx.jid, targetJid);
+        const num = digitsOf(targetJid.split('@')[0]);
+        return removed
+            ? `✅ Nomor *${num}* dilepas dari daftar blokir. Sekarang bisa join grup lagi.`
+            : `Nomor *${num}* tidak ada di daftar blokir.`;
     },
 };
 
-export const groupCommands = [kick, promote, demote, warn, unwarn, warns, unblacklist];
+const blacklist = {
+    name: 'bl',
+    aliases: ['blacklist', 'daftarblokir'],
+    feature: 'group',
+    groupOnly: true,
+    adminOnly: true,
+    usage: '.bl',
+    desc: 'Lihat daftar member yang diblokir',
+    async handler(ctx) {
+        const listed = await groupRepo.listBlacklist(ctx.sessionId, ctx.jid);
+        if (!listed.length) return 'Daftar blokir grup ini kosong ✅';
+        return `${blacklistText(listed)}\n\nLepas blokir: *.unbl <nomor>*`;
+    },
+};
+
+export const groupCommands = [kick, promote, demote, warn, unwarn, warns, blacklist, unblacklist];
 
 /**
  * Auto-moderation on group membership changes: kick blacklisted users that

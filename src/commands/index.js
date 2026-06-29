@@ -65,6 +65,9 @@ export async function runCommand({ sessionId, sock, msg, jid, isGroup, features 
         group: null,
     };
 
+    console.log(ctx);
+
+
     // Resolve group context + admin checks when needed.
     if (isGroup && (command.adminOnly || command.botAdmin)) {
         try {

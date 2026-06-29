@@ -4,6 +4,7 @@ import pino from 'pino';
 import QRCode from 'qrcode';
 
 import { handleMessage } from '../handlers/message.handler.js';
+import { handleParticipantsUpdate } from '../commands/group.commands.js';
 import { useMySQLAuthState } from './auth-state.js';
 import {
     addLog,
@@ -162,6 +163,17 @@ export async function startSession(sessionId) {
         sock.ev.on('messages.upsert', async ({ messages }) => {
             for (const message of messages) {
                 await handleMessage(sessionId, sock, message);
+            }
+        });
+
+        // Group membership changes: enforce the blacklist (auto-kick rejoins).
+        sock.ev.on('group-participants.update', async (update) => {
+            try {
+                const current = await sessionRepo.get(sessionId);
+                const groupEnabled = current?.settings?.features?.group !== false;
+                await handleParticipantsUpdate(sessionId, sock, update, { groupEnabled });
+            } catch (error) {
+                logger.error(error, 'group-participants.update handler failed');
             }
         });
 

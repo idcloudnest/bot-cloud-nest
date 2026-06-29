@@ -8,6 +8,10 @@ export const config = {
     ignoreGroups: process.env.IGNORE_GROUPS === 'true',
     ignorePrivates: process.env.IGNORE_PRIVATES === 'true',
     logLimit: Number(process.env.LOG_LIMIT || 100),
+    // Command prefix for bot commands (e.g. ".kick"). Single character.
+    commandPrefix: (process.env.COMMAND_PREFIX || '.').slice(0, 1),
+    // Warnings before a user is auto-kicked + blacklisted from a group.
+    warnLimit: Math.max(Number(process.env.WARN_LIMIT || 3), 1),
     // QR scan timeout (seconds). Default 60s. Minimum 10s.
     qrTimeoutMs: Math.max(Number(process.env.QR_TIMEOUT_SECONDS || 60), 10) * 1000,
     // Authentication.

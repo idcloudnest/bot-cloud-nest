@@ -2256,3 +2256,16 @@ th {
 .sidebar-user:hover {
     border-color: var(--border-strong, #d3dbe8);
 }
+
+/* Settings: modular feature section divider */
+.setting-feature-head {
+    border-top: 1px dashed var(--border-strong, #d3dbe8);
+    padding-top: 18px;
+    margin-top: 4px;
+    background: transparent;
+}
+.setting-card h3 .fas {
+    color: var(--accent, #2563eb);
+    margin-right: 6px;
+    font-size: 14px;
+}

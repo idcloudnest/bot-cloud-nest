@@ -71,6 +71,29 @@ const STATEMENTS = [
         KEY idx_logs_session_created (session_id, created_at),
         CONSTRAINT fk_logs_session FOREIGN KEY (session_id) REFERENCES sessions (id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`,
+
+    // Group moderation: per (account, group, user) warning counter.
+    `CREATE TABLE IF NOT EXISTS group_warnings (
+        session_id  VARCHAR(64)  NOT NULL,
+        group_jid   VARCHAR(191) NOT NULL,
+        user_jid    VARCHAR(191) NOT NULL,
+        count       INT          NOT NULL DEFAULT 0,
+        reason      VARCHAR(255) NULL,
+        updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (session_id, group_jid, user_jid),
+        CONSTRAINT fk_warn_session FOREIGN KEY (session_id) REFERENCES sessions (id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`,
+
+    // Group moderation: blacklisted users (auto-kicked if they rejoin).
+    `CREATE TABLE IF NOT EXISTS group_blacklist (
+        session_id  VARCHAR(64)  NOT NULL,
+        group_jid   VARCHAR(191) NOT NULL,
+        user_jid    VARCHAR(191) NOT NULL,
+        reason      VARCHAR(255) NULL,
+        created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (session_id, group_jid, user_jid),
+        CONSTRAINT fk_blacklist_session FOREIGN KEY (session_id) REFERENCES sessions (id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`,
 ];
 
 /**
@@ -112,6 +135,19 @@ async function migrateSessionsOwnerColumn(pool) {
     }
 }
 
+/** Add the sessions.features column to pre-existing databases (idempotent). */
+async function migrateSessionsFeaturesColumn(pool) {
+    const [rows] = await pool.query(
+        `SELECT 1 FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sessions' AND COLUMN_NAME = 'features'
+         LIMIT 1`,
+    );
+    if (rows.length === 0) {
+        await pool.query('ALTER TABLE sessions ADD COLUMN features JSON NULL AFTER log_limit');
+        logger.info('🔧 Migration: sessions.features column added');
+    }
+}
+
 export async function migrate() {
     const pool = getPool();
     for (const sql of STATEMENTS) {
@@ -119,5 +155,6 @@ export async function migrate() {
     }
     await migrateLogsIdColumn(pool);
     await migrateSessionsOwnerColumn(pool);
+    await migrateSessionsFeaturesColumn(pool);
     logger.info('✅ Database migrated (tables ready)');
 }

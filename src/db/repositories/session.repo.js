@@ -1,6 +1,18 @@
 import { query } from '../pool.js';
 import { config } from '../../config.js';
 
+// Default feature flags for a bot (modular on/off per account).
+export const DEFAULT_FEATURES = { store: true, group: true };
+
+/** Normalize a stored features value (JSON column) into a complete flags object. */
+function normalizeFeatures(raw) {
+    const f = raw && typeof raw === 'object' ? raw : {};
+    return {
+        store: f.store !== undefined ? Boolean(f.store) : DEFAULT_FEATURES.store,
+        group: f.group !== undefined ? Boolean(f.group) : DEFAULT_FEATURES.group,
+    };
+}
+
 /** Convert a DB row into the status shape used by the app/frontend. */
 export function toSessionDTO(row) {
     if (!row) return null;
@@ -24,6 +36,7 @@ export function toSessionDTO(row) {
             ignoreGroups: Boolean(row.ignore_groups),
             ignorePrivates: Boolean(row.ignore_privates),
             logLimit: row.log_limit,
+            features: normalizeFeatures(row.features),
         },
     };
 }
@@ -108,9 +121,9 @@ export async function exists(id) {
 
 export async function create({ id, name, ownerId = null }) {
     await query(
-        `INSERT INTO sessions (id, name, owner_id, connection, connected, message, ignore_groups, ignore_privates, log_limit)
-         VALUES (?, ?, ?, 'idle', 0, 'Bot standby. Click Generate QR to start.', ?, ?, ?)`,
-        [id, name, ownerId, config.ignoreGroups ? 1 : 0, config.ignorePrivates ? 1 : 0, config.logLimit],
+        `INSERT INTO sessions (id, name, owner_id, connection, connected, message, ignore_groups, ignore_privates, log_limit, features)
+         VALUES (?, ?, ?, 'idle', 0, 'Bot standby. Click Generate QR to start.', ?, ?, ?, ?)`,
+        [id, name, ownerId, config.ignoreGroups ? 1 : 0, config.ignorePrivates ? 1 : 0, config.logLimit, JSON.stringify(DEFAULT_FEATURES)],
     );
     return get(id);
 }
@@ -155,6 +168,14 @@ export async function updateSettings(id, settings = {}) {
     if (settings.ignoreGroups !== undefined) { fields.push('ignore_groups = ?'); values.push(settings.ignoreGroups ? 1 : 0); }
     if (settings.ignorePrivates !== undefined) { fields.push('ignore_privates = ?'); values.push(settings.ignorePrivates ? 1 : 0); }
     if (settings.logLimit !== undefined) { fields.push('log_limit = ?'); values.push(settings.logLimit); }
+
+    if (settings.features !== undefined) {
+        // Merge the patch onto the current features so partial updates are safe.
+        const current = await get(id);
+        const merged = normalizeFeatures({ ...(current?.settings.features || {}), ...settings.features });
+        fields.push('features = ?');
+        values.push(JSON.stringify(merged));
+    }
 
     if (!fields.length) return get(id);
 

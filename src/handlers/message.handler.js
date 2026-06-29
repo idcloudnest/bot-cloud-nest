@@ -2,6 +2,7 @@ import { addLog, notifyConversations } from '../state/app-state.js';
 import * as conversationRepo from '../db/repositories/conversation.repo.js';
 import * as sessionRepo from '../db/repositories/session.repo.js';
 import { extractMessageText } from '../utils/formatter.js';
+import { isCommand, runCommand } from '../commands/index.js';
 import { getBrands, getBrandGroups } from '../services/product-api.js';
 import {
     welcomeMessage,
@@ -34,6 +35,18 @@ function parseChoice(text, length) {
     return n >= 1 && n <= length ? n - 1 : -1;
 }
 
+/** Normalize a reply (string | { text, mentions }) and send it. */
+async function sendReply(sessionId, sock, jid, reply) {
+    if (!reply) return;
+    const payload = typeof reply === 'string' ? { text: reply } : reply;
+    try {
+        await sock.sendMessage(jid, payload);
+        await addLog(sessionId, 'outgoing', { text: payload.text }, jid);
+    } catch (error) {
+        await addLog(sessionId, 'error', { text: `Failed to send reply: ${error.message}` }, jid);
+    }
+}
+
 export async function handleMessage(sessionId, sock, msg) {
     if (!msg.message || msg.key.fromMe) return;
 
@@ -41,9 +54,10 @@ export async function handleMessage(sessionId, sock, msg) {
     const text = extractMessageText(msg);
     if (!text) return;
 
-    // Per-account settings (ignore groups/privates).
+    // Per-account settings (ignore groups/privates + feature flags).
     const session = await sessionRepo.get(sessionId);
     const settings = session?.settings || {};
+    const features = settings.features || { store: true, group: true };
     const isGroup = jid.endsWith('@g.us');
     if (isGroup && settings.ignoreGroups) return;
     if (!isGroup && settings.ignorePrivates) return;
@@ -51,23 +65,25 @@ export async function handleMessage(sessionId, sock, msg) {
     await addLog(sessionId, 'incoming', { text }, jid);
 
     const input = text.trim();
-    const lower = input.toLowerCase();
 
-    let reply = '';
-    try {
-        reply = await route({ sessionId, jid, input, lower });
-    } catch (error) {
-        await addLog(sessionId, 'error', { text: `Flow error: ${error.message}` }, jid);
-        reply = error.message || 'Maaf kak, terjadi kendala. Ketik *#* untuk mulai ulang.';
+    // 1. Prefixed commands (.help, .kick, ...). Always parsed; feature-gated inside.
+    if (isCommand(input)) {
+        const reply = await runCommand({ sessionId, sock, msg, jid, isGroup, features }, input);
+        await sendReply(sessionId, sock, jid, reply);
+        await notifyConversations(sessionId);
+        return;
     }
 
-    if (reply) {
+    // 2. Product catalog conversation flow (only if the 'store' feature is on).
+    if (features.store) {
+        let reply = '';
         try {
-            await sock.sendMessage(jid, { text: reply });
-            await addLog(sessionId, 'outgoing', { text: reply }, jid);
+            reply = await route({ sessionId, jid, input, lower: input.toLowerCase() });
         } catch (error) {
-            await addLog(sessionId, 'error', { text: `Failed to send reply: ${error.message}` }, jid);
+            await addLog(sessionId, 'error', { text: `Flow error: ${error.message}` }, jid);
+            reply = error.message || 'Maaf kak, terjadi kendala. Ketik *#* untuk mulai ulang.';
         }
+        await sendReply(sessionId, sock, jid, reply);
     }
 
     await notifyConversations(sessionId);

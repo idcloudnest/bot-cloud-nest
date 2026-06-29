@@ -26,16 +26,22 @@ export function renderSettings(settings = {}) {
     const ignoreGroups = $('#ignoreGroupsInput');
     const ignorePrivates = $('#ignorePrivatesInput');
     const logLimit = $('#logLimitInput');
+    const featureStore = $('#featureStoreInput');
+    const featureGroup = $('#featureGroupInput');
 
     if (ignoreGroups) ignoreGroups.checked = Boolean(settings.ignoreGroups);
     if (ignorePrivates) ignorePrivates.checked = Boolean(settings.ignorePrivates);
     if (logLimit) logLimit.value = settings.logLimit || 100;
 
+    const features = settings.features || {};
+    if (featureStore) featureStore.checked = features.store !== false;
+    if (featureGroup) featureGroup.checked = features.group !== false;
+
     setText($('#logLimitText'), `Max ${settings.logLimit || 100} logs in memory`);
 }
 
 export function initSettings() {
-    ['#botNameInput', '#ignoreGroupsInput', '#ignorePrivatesInput', '#logLimitInput'].forEach((selector) => {
+    ['#botNameInput', '#ignoreGroupsInput', '#ignorePrivatesInput', '#logLimitInput', '#featureStoreInput', '#featureGroupInput'].forEach((selector) => {
         const el = $(selector);
         if (!el) return;
         el.addEventListener('input', markDirty);
@@ -70,6 +76,10 @@ export function initSettings() {
                 ignoreGroups: $('#ignoreGroupsInput').checked,
                 ignorePrivates: $('#ignorePrivatesInput').checked,
                 logLimit,
+                features: {
+                    store: $('#featureStoreInput').checked,
+                    group: $('#featureGroupInput').checked,
+                },
             });
             renderSettings(result);
             markSaved();
